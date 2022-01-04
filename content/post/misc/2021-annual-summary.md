@@ -81,6 +81,8 @@ categories: ["life"]
 > ![2021](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2021/17.jpeg)
 > ![2021](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2021/19.jpeg)
 > ![2021](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2021/20.jpeg)
+> 同行的大叔和阿姨，很有趣。
+> 
 > 旁边居然是雪山，忘记地名了。很好玩！
 
 > ![2021](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2021/18.jpeg)
