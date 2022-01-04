@@ -11,20 +11,20 @@ categories: ["life"]
 今天却体验了不一样的北京。
 
 ### 2020.03.12，雨，7°
-> ![](/images/beijing/1.jpg)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/1.jpg)
 > 
 > 昨夜下了一夜的雨，今天白天也是雨蒙蒙的
 
 
 ### 天安门旁边
-> ![](/images/beijing/0.jpg)
-> ![](/images/beijing/2.jpg)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/0.jpg)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/2.jpg)
 > 
 > 早上发现天安门旁边的梅花开了。杨柳长了新芽
 
 
 ### 英雄纪念碑隐匿在雨雾中
-> ![](/images/beijing/4.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/4.JPG)
 
 晚上6点后，带着相机出门。
 
@@ -45,24 +45,24 @@ haha！
 看了下地图，沿着什刹海方向瞎走。
 
 ### 什刹海
-> ![](/images/beijing/7.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/7.JPG)
 >
-> ![](/images/beijing/8.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/8.JPG)
 > 
-> ![](/images/beijing/11.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/11.JPG)
 >  
 > 瞎拍，反正也不是专业的。
 
 
 ### 看到胡同就进去，反正我也不认识路
-> ![](/images/beijing/14.JPG)
-> ![](/images/beijing/18.JPG)
-> ![](/images/beijing/19.JPG)
-> ![](/images/beijing/20.JPG)
-> ![](/images/beijing/21.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/14.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/18.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/19.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/20.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/21.JPG)
 
 ### 胡同里的小吃
-> ![](/images/beijing/05.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/05.JPG)
 >
 > 正宗不正宗咱也不敢问
 >
@@ -71,12 +71,12 @@ haha！
 > 以后再也不会吃第二次了！！！
 
 ### 胡同里走着走着，进到了南锣鼓巷
-> ![](/images/beijing/23.JPG)
-> ![](/images/beijing/24.JPG)
-> ![](/images/beijing/26.JPG)
-> ![](/images/beijing/28.JPG)
-> ![](/images/beijing/29.JPG)
-> ![](/images/beijing/31.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/23.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/24.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/26.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/28.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/29.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/31.JPG)
 > 
 > 这里的胡同商业气息比较少，很有生活气息
 > 
@@ -87,7 +87,7 @@ haha！
 > 偶尔还能看到电视里那种骑着自行车穿梭在胡同里的人
 
 ### 有线公交车？
-> ![](/images/beijing/33.JPG)
+> ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/beijing/33.JPG)
 > 
 > 错乱的电线
 
