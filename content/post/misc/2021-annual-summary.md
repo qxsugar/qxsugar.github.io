@@ -1,7 +1,7 @@
 ---
 title: "2021总结"
 date: "2021-12-31T16:06:09+08:00"
-draft: "true"
+draft: "false"
 tags: ["life", "年终总结"]
 categories: ["life"]
 ---
