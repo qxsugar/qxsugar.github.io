@@ -8,7 +8,7 @@ categories: ["life"]
     
 欲买桂花同载酒，终不似，少年游 *---刘过*
 
-![](/images/5UAGvJ.jpg)
+![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/misc/5UAGvJ.jpg)
 
 ### 胡思乱语
 1. 学过或则看过的地下，没有整理的话，总结的确实了点安全感，害～

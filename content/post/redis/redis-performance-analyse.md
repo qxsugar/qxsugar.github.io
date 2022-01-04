@@ -25,7 +25,7 @@ rdr原本的下载链接失效了。[新的下载链接](https://github.com/goho
 
 生成好之后。我们打开8080端口，就可以看到分析结果了
 
-![](/images/NOqC6S.png)
+![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/misc/NOqC6S.png)
 
 从这里可以看到，我们主要内存才用了3.5G，那么为什么12G都快满了呢， 后来和服务方技术交流才知道是内存碎片率太高了，mem_fragmentation_ratio都快2.5了。 默认的内存回收机制和我们自己搭建的集群有区别。
 导致内存一直在涨，不释放。
