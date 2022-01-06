@@ -94,8 +94,6 @@ categories: ["life"]
 
 ### 2021.07.01 写了一个记账软件
 
-    用了一周写完核心功能并且发布了，回头想想真的快。
-
 ### 2021.07.13 去了趟北京
 
 > ![2021](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2021/23.jpeg)
