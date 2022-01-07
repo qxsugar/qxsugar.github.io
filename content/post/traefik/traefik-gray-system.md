@@ -6,10 +6,17 @@ tags: ["traefik"]
 categories: ["traefik"]
 ---
 
-在对产品进行发布时候，我们期望能对先小量发布，对一小部分用户生效，验证没问题了再扩大发布范围，直到全部。
-这时候一个合理，健壮的发布系统就很重要了。
+在对产品进行发布时候，我们期望能对先小量发布，对一小部分用户生效，验证没问题了再扩大发布范围，直到全量发布。
+目前市面上存在很多发布策略
+1. 蓝绿部署
+2. 灰度部署
+3. 金丝雀发布
+4. ab测试
 
 ## 背景
+    traefik2.0以后支持自定义middleware插件，可以对请求做一些处理。
+    所以
+
     目前市面上的发布策略有几种策略，
     1. 蓝绿部署
     2. 滚动发布
@@ -43,9 +50,7 @@ categories: ["traefik"]
 目前traefik提供了middleware插件式开发，可以对流量做一些操作。
 
 ```go 
-func (a *Abtest) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-
-}
+func (a *Abtest) ServeHTTP(rw http.ResponseWriter, req *http.Request) {}
 ```
 
 ### 技术方案
