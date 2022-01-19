@@ -156,6 +156,6 @@ spec:
 
 ## 插件地址
 
-[根据标签转发请求插件](https://github.com/qxsugar/traefik-gray-forward)
+[请求标记系统](https://github.com/qxsugar/request-mark)
 
-[给请求打标签插件](https://github.com/qxsugar/traefik-gray-tag)
+[请求分发系统](https://github.com/qxsugar/request-dispatch)
