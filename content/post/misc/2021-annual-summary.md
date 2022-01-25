@@ -19,7 +19,7 @@ categories: ["life"]
 
 ### 2021.04.21 提了离职
 
-> ![2021](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2021/00.png)
+> ![2021](https://static-1252018492.cos.ap-nanjing.myqcloud.com/uPic/WlFerP.png)
 > 思考再三，还是提了。
 
     离开前，反思了很多事情。
