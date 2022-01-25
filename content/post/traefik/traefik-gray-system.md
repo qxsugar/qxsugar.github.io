@@ -28,7 +28,63 @@ traefik2.0以后支持了自定义middleware功能，可以对请求做一些处
 2. 设计一个middleware对不同标记的请求进行转发
 
 流程
-![灰度发布系统流程](https://static-1252018492.cos.ap-nanjing.myqcloud.com/uPic/9uKZNf.png)
+
+没有插件流程
+{{< mermaid >}}
+flowchart LR;
+    user(user)
+    traefik(traefik gateway)
+    svc(prod-svc)
+    pod1(pod1)
+    pod2(pod2)
+    podX(pod...)
+    db[(db)]
+
+    user--request-->traefik-->svc
+    svc-->pod1-->db
+    svc-->pod2-->db
+    svc-->podX-->db
+{{< /mermaid >}}
+
+灰度系统流程
+{{< mermaid >}}
+flowchart LR
+    user(user)
+    traefik(traefik gateway)
+    prodSvc(prod-svc)
+    alphaSvc(alpha-svc)
+    betaSvc(beta-svc)
+    m1{middles...}    
+    m2{请求染色}
+    m3{请求转发}
+    user--request-->traefik
+    subgraph traefik middlewares
+        m1-- next -->m2--next-->m3
+    end
+    subgraph prod env
+        pod1(pod1) 
+        pod2(pod...)
+    end
+    subgraph alpha env
+        pod3(pod3)
+        pod4(pod...)
+    end
+    subgraph beta env
+        pod5(pod5)
+        pod6(pod...)
+    end
+    traefik-->m1
+    m3--"正常请求"-->prodSvc
+    m3--"alpha 标记"-->alphaSvc
+    m3--"beta 标记"-->betaSvc
+    prodSvc-->pod1
+    prodSvc-->pod2
+    alphaSvc-->pod3
+    alphaSvc-->pod4
+    betaSvc-->pod5
+    betaSvc-->pod6
+
+{{< /mermaid >}}
 
 ## 具体实现
 
