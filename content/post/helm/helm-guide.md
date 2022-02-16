@@ -255,10 +255,10 @@ spec:
 2. helm的部署方式
     - 优势
         - 可以复用charts，可以使用别人公开的charts，可以使用公开地charts。
-        - 一套charts可以配多个values.yaml适配多个环境。
-        - 多个组建打包成一个整体，组件（ingress，service，deployment等）安装一起安装，卸载时候一起卸载。
+        - 
+        - 
     - 劣势
-        - 需要额外的学习成本。
+        -
 
 ## 使用方式
 
