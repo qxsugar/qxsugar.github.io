@@ -1,5 +1,5 @@
 ---
-title: "基于traefik实现一个灰度发布系统"
+title: "基于Traefik实现一个灰度发布系统"
 date: "2022-01-06T13:56:48+08:00"
 draft: "false"
 tags: ["traefik"]
