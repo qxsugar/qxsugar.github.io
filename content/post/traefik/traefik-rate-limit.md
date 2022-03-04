@@ -1,18 +1,24 @@
 ---
-title: "Traefik 限流配置 - k8s"
+title: "Traefik配置限流"
 date: "2021-12-31T13:56:21+08:00"
 draft: "false"
 tags: ["traefik"]
 categories: ["traefik"]
 ---
 
-最近在k3s的docs上发现了一个描述，k3s v1.2.1 以上的版本已经默认安装traefik v2了
+traefik是一个纯go写的Gateway，不仅内置了很多常用的插件，还支持自定义插件。
 
-> If Traefik is not disabled K3s versions 1.20 and earlier will install Traefik v1, while K3s versions 1.21 and later will install Traefik v2 if v1 is not already present.
+今天就来配置一下traefik的限流
 
-恰巧和traefik打交道挺多的，所以就想用下限流的
+## 环境准备
 
-## yaml文件配置
+这里我是用k3s来测试的，只需要安装好k3s就可以了。
+
+准备一个域名指向安装了k3s的服务器。
+
+## 配置服务
+
+1. 部署一个nginx的deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -34,7 +40,11 @@ spec:
           image: nginx:1.14.2
           ports:
             - containerPort: 80
----
+```
+
+2. 配置service
+
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -45,9 +55,12 @@ spec:
       protocol: TCP
   selector:
     app: nginx
----
-# 这是traefik自定义的CRD，定义一个使用rateLimit的插件
-# dock https://traefik.tech/middlewares/ratelimit/
+```
+
+3. 配置一个rateLimit的middleware
+
+```yaml
+# ref https://traefik.tech/middlewares/ratelimit/
 # 参数解析
 # average 最大速率，默认情况下是每s请求数，默认值为0，表示没有限制，该速率实际上是用average除以period来定义的。因此，对于低于1 req/s的速率，需要定义一个大于一秒的period
 # burst 是在任意短的同一时间段内允许通过的最大请求数，默认为1
@@ -62,9 +75,11 @@ spec:
     average: 1
     burst: 1
     period: 3
----
-# 这里的IngressRoute也是traefik的CRD，语法和traefik的配置是一样的
-# 这里使用了z-rate middleware
+```
+
+4. 配置一个ingress解析
+
+```yaml
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
@@ -78,13 +93,10 @@ spec:
       services:
         - name: nginx
           port: 80
+      # 使用限流插件
       middlewares:
         - name: z-rate
 ```
-
-## apply 这几个yaml文件，配置rate.ppapi.cn解析
-
-> kubectl apply -f rate-limit.yaml
 
 ## 执行ab test 来并发请求
 
