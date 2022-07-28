@@ -1,14 +1,14 @@
 ---
-title: "Traefik 源码解读"
+title: "Traefik 源码解读，TCP的完整生命周期"
 date: "2022-02-25T18:45:10+08:00"
 draft: "false"
-tags: []
-categories: []
+tags: ["traefik"]
+categories: ["traefik"]
 ---
 
 下面我们来正式解读traefik源码。
 
-traefik实现了很多协议（tcp，udp等），我们的目标解读一个http请求到了traefik，发送了什么变化，如何被反向代理到目标去
+traefik实现了很多协议（tcp，udp等），我们的目标解读一个http请求到了traefik，发送了什么变化，如何被反向代理到目标去。
 
 ## Traefik目录结构
 
@@ -369,7 +369,7 @@ func (e *TCPEntryPoint) Start(ctx context.Context) {
 
 ## 总结
 
-1. traefik 数据传递都是通过`ServeTCP(conn WriteCloser)`和`ServeHTTP(rw http.ResponseWriter, req *http.Request)`来传递的
-2. traefik 自定义插件是通过`yaegi`来动态加载的
-3. alice要先了解原理，否则容易被绕进去
-4. traefik很有很多东西没有解读，插件加载，provider，healthcheck，metrics，udp，tls等都是恨之昂要的模块
+1. traefik 数据传递都是通过`ServeTCP(conn WriteCloser)`和`ServeHTTP(rw http.ResponseWriter, req *http.Request)`来传递的。
+2. traefik 自定义插件是通过`yaegi`来动态加载的。
+3. alice要先了解原理，否则容易被绕进去。
+4. traefik很有很多东西没有解读，插件加载，provider，healthcheck，metrics，udp，tls等都是非常核心的模块。
