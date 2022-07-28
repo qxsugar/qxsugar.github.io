@@ -372,4 +372,4 @@ func (e *TCPEntryPoint) Start(ctx context.Context) {
 1. traefik 数据传递都是通过`ServeTCP(conn WriteCloser)`和`ServeHTTP(rw http.ResponseWriter, req *http.Request)`来传递的。
 2. traefik 自定义插件是通过`yaegi`来动态加载的。
 3. alice要先了解原理，否则容易被绕进去。
-4. traefik很有很多东西没有解读，插件加载，provider，healthcheck，metrics，udp，tls等都是非常核心的模块。
+   1. traefik很有很多东西没有解读，插件加载，provider，healthcheck，metrics，udp，tls等都是非常核心的模块。
