@@ -1,52 +1,79 @@
 ---
-title: "mysql查询命中率分析"
+title: "分析MySql命中率"
 date: "2019-08-27 14:45:26"
 draft: "false"
 categories: ["mysql"]
 tags: ["mysql"]
 ---
 
-当一个mysql的查询量很高时候，有很多种优化方案。 分库分表，主从分离等都是不错的选择。 主从分离情况下，我们怎么权衡一个DB的性能有没有被最大效率的利用呢？ 通常我们会选择查询缓存命中率来作为读库的一个指标。
+当一个mysql的查询量很高时候，有很多种优化方案。
+
+分库分表，主从分离等都是不错的选择。
+
+主从分离情况下，我们怎么权衡一个DB的性能有没有被最大效率的利用呢？
+
+通常我们会选择查询缓存命中率来作为读库的一个指标。
+
 <!-- more -->
 
 由于现在DB引擎都是Innodb居多。 所以下面都是以Innodb的角度来说。
 
 ### MySql 缓存命中率是什么?
 
-MySql查询读取磁盘的代价是很高的。 所以我们希望MySql尽可能的读取缓存。 缓存命中就是查询MySql的时候，直接从内存中得到结果返回。 计算公式 缓存命中率 = 读内存次数 / 查询总数。 一般来说。我们希望读库的缓存命中率达到
-99.95% 以上。
+    MySql查询读取磁盘的代价是很高的。
+    所以我们希望MySql尽可能的读取缓存。
+    缓存命中就是查询MySql的时候，直接从内存中得到结果返回。
+    计算公式：缓存命中率 = 读内存次数 / 查询总数。一般来说。我们希望读库的缓存命中率达到99.95%以上。
 
 ### MySql 缓存参数配置
 
-查看当前缓存配置大小
-> show variables like 'innodb_buffer_pool_size'
+#### 查看当前缓存配置大小
 
-| Variable_name | Value | | :-: | :-: | | innodb_buffer_pool_size| 6442450944 |
+```mysql
+show variables like 'innodb_buffer_pool_size';
+-- +-------------------------+------------+
+-- | Variable_name           | Value      |
+-- +-------------------------+------------+
+-- | innodb_buffer_pool_size | 8589934592 |
+-- +-------------------------+------------+
+```
 
-控制台修改缓存大小
-> SET GLOBAL innodb_buffer_pool_size=6442450944;
+#### 控制台修改缓存大小
 
-修改缓存大小方案
+```mysql
+SET GLOBAL innodb_buffer_pool_size = 6442450944;
+```
+
+#### 修改缓存大小方案
 
 1. 修改mysql配置文件并重启mysql
 2. 在mysql控制台修改配置，同时修改配置，不用重启
 
-还有其他参数我们用不到
-
 ### 缓存命中率计算
 
-根据公式 缓存命中率 = 读内存次数 / 查询总数 我们很容易算出命中率
+    根据公式 缓存命中率 = 读内存次数 / 查询总数 我们很容易算出命中率
+    读内存次数 = "Innodb_buffer_pool_reads"
+    查询总次数 = "Innodb_buffer_pool_read_requests"
 
-读内存次数 = "Innodb_buffer_pool_reads"
+```mysql
+show status like '%pool_read%';
+-- +---------------------------------------+-------------+
+-- | Variable_name                         | Value       |
+-- +---------------------------------------+-------------+
+-- | Innodb_buffer_pool_read_ahead_rnd     | 0           |
+-- | Innodb_buffer_pool_read_ahead         | 91335272    |
+-- | Innodb_buffer_pool_read_ahead_evicted | 1457864     |
+-- | Innodb_buffer_pool_read_requests      | 99533847127 |
+-- | Innodb_buffer_pool_reads              | 626998882   |
+-- +---------------------------------------+-------------+
+```
 
-查询总次数 = "Innodb_buffer_pool_read_requests"
+>
 
-> show status like '%pool_read%'
+    但是这两个值是总的数量,并不是一段时间内的，参考价值不大，所以我们要取一段时间内的差值来算
+    命中率 = (第二次读内存次数 - 第一次读内存次数) / (第二次查询总数 - 第一次查询总数)
 
-| Variable_name | Value | | :-: | :-: | | Innodb_buffer_pool_read_requests | 42766114022 | | Innodb_buffer_pool_reads |
-566498466 |
-
-但是这两个值是总的数量，并不是一段时间内的，参考价值不大，所以我们要取一段时间内的差值来算 命中率 = (第二次读内存次数 - 第一次读内存次数) / (第二次查询总数 - 第一次查询总数)
+### bash脚本
 
 算了好多次，都是重复性的，有点繁琐，所以写了个脚本来算
 
@@ -89,7 +116,7 @@ reads=`expr ${info2[1]} - ${info1[1]}`
 echo | awk "{ print \"命中率:\", ($requests-$reads) / $requests * 100.0 }"
 ```
 
-*使用方法*
+**使用方法**
 
 ```bash
 MYSQL缓存命中查询脚本
@@ -105,4 +132,6 @@ MYSQL缓存命中查询脚本
 命中率: 99.1068
 ```
 
-只需要很简单的一个计算，就能知道我们的mysql内存使用率有没有达到最搞笑了。
+~~只需要很简单的一个计算，就能知道我们的mysql内存使用率有没有达到最高效了。~~
+
+目前大部分生产的MySql都已经上云了，这些脚本意义已经不是很大了。
