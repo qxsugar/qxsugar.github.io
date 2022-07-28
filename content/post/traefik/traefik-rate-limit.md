@@ -8,15 +8,14 @@ categories: ["traefik"]
 
 traefik是一个纯go写的Gateway，不仅内置了很多常用的插件，还支持自定义插件。
 
-今天就来配置一下traefik的限流
+今天就来配置一下traefik的限流。
 
-## 环境准备
+### 环境准备
 
-这里我是用k3s来测试的，只需要安装好k3s就可以了。
+    这里我是用k3s来测试的，k3s默认的ingress就是traefik。
+    准备一个域名指向安装了k3s的服务器。
 
-准备一个域名指向安装了k3s的服务器。
-
-## 配置服务
+### 配置服务
 
 1. 部署一个nginx的deployment
 
@@ -42,7 +41,7 @@ spec:
             - containerPort: 80
 ```
 
-2. 配置service
+2. 配置service指向nginx的deploy
 
 ```yaml
 apiVersion: v1
@@ -98,16 +97,15 @@ spec:
         - name: z-rate
 ```
 
-## 执行ab test 来并发请求
+### 执行ab test 来并发请求
 
-```shell
+```text
 ab -n 100 -c 10 "http://rate.ppapi.cn/"
 This is ApacheBench, Version 2.3 <$Revision: 1879490 $>
 Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
 Licensed to The Apache Software Foundation, http://www.apache.org/
 
 Benchmarking rate.ppapi.cn (be patient).....done
-
 
 Server Software:        nginx/1.14.2
 Server Hostname:        rate.ppapi.cn
@@ -148,4 +146,4 @@ Percentage of the requests served within a certain time (ms)
  100%    318 (longest request)
 ```
 
-可以看到100次请求用了0.534s，100次请求只有一次成功了，failed了99次，说明限流成功了
+**可以看到100次请求用了0.534s，100次请求只有一次成功了，failed了99次，说明限流成功了**
