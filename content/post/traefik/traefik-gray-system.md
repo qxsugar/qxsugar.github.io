@@ -8,99 +8,97 @@ categories: ["traefik"]
 
 最近切换到了k8s，用了traefik作为Gateway。
 
-traefik2.0以后支持了自定义middleware功能，可以对请求做一些处理。基于这个功能我们可以实现一个灰度系统。
+traefik2.0以后支持了自定义middleware功能，可以对请求做一些处理。
+
+基于这个功能我们可以实现一个灰度系统。
 
 [developing traefik plugins](https://doc.traefik.io/traefik-pilot/plugins/plugin-dev/)
 
-## 需求功能
+### 需求功能
 
 1. 能基于用户identify做灰度。
 2. 能基于请求版本做灰度。
 3. 能基于百分比做灰度。
 4. 能基于url关键字做灰度。
-5. 系统透明，不需要改动业务代码。
+5. 透明系统，不需要改动业务代码。
 
-## 设计方案
+### 设计方案
 
-由于middleware是串行，所以我们可以分成多个middleware来设计。
+由于traefik的middleware是串行，所以我们分成多个步骤来会读。
 
-1. 设计一个middleware根据策略对流量进行染色。
-2. 设计一个middleware对不同标记的请求进行转发
+1. 一个middle负责对流量进行识别染色处理。
+2. 一个服务负责对不同颜色的流量转发到不同服务。
 
-## 流程
+### 流程
 
-没有插件流程
+**默认系统流出**
 {{< mermaid >}}
 flowchart LR;
-    user(user)
-    traefik(traefik gateway)
-    svc(prod-svc)
-    pod1(pod1)
-    pod2(pod2)
-    podX(pod...)
-    db[(db)]
+user(user)
+traefik(traefik gateway)
+svc(prod-svc)
+pod1(pod1)
+pod2(pod2)
+podX(pod...)
+db[(db)]
 
     user--request-->traefik-->svc
     svc-->pod1-->db
     svc-->pod2-->db
     svc-->podX-->db
+
 {{< /mermaid >}}
 
-灰度系统流程
+**灰度系统流程**
 {{< mermaid >}}
 flowchart LR
-    user(user)
-    traefik(traefik gateway)
-    prodSvc(prod-svc)
-    alphaSvc(alpha-svc)
-    betaSvc(beta-svc)
-    m1{middles...}    
-    m2{请求染色}
-    m3{请求转发}
-    user--request-->traefik
-    subgraph traefik middlewares
-        m1-- next -->m2--next-->m3
-    end
-    subgraph prod env
-        pod1(pod1) 
-        pod2(pod...)
-    end
-    subgraph alpha env
-        pod3(pod3)
-        pod4(pod...)
-    end
-    subgraph beta env
-        pod5(pod5)
-        pod6(pod...)
-    end
-    traefik-->m1
-    m3--"正常请求"-->prodSvc
-    m3--"alpha 标记"-->alphaSvc
-    m3--"beta 标记"-->betaSvc
-    prodSvc-->pod1
-    prodSvc-->pod2
-    alphaSvc-->pod3
-    alphaSvc-->pod4
-    betaSvc-->pod5
-    betaSvc-->pod6
-
+user(user)
+traefik(traefik gateway)
+prodSvc(prod-svc)
+alphaSvc(alpha-svc)
+betaSvc(beta-svc)
+m1{middles...}    
+m2{请求染色}
+m3{请求转发}
+user--request-->traefik
+subgraph traefik middlewares
+m1-- next -->m2--next-->m3
+end
+subgraph prod env
+pod1(pod1)
+pod2(pod...)
+end
+subgraph alpha env
+pod3(pod3)
+pod4(pod...)
+end
+subgraph beta env
+pod5(pod5)
+pod6(pod...)
+end
+traefik-->m1
+m3--"正常请求"-->prodSvc
+m3--"alpha 标记"-->alphaSvc
+m3--"beta 标记"-->betaSvc
+prodSvc-->pod1
+prodSvc-->pod2
+alphaSvc-->pod3
+alphaSvc-->pod4
+betaSvc-->pod5
+betaSvc-->pod6
 {{< /mermaid >}}
 
-## 具体实现
+## 具体实现放在了github
 
-具体实现放在了github
+1. [流量染色插件](https://github.com/qxsugar/request-mark)
+2. [流量转发插件](https://github.com/qxsugar/request-dispatch)
 
-[流量染色插件](https://github.com/qxsugar/request-mark)
+### 测试使用
 
-[流量转发插件](https://github.com/qxsugar/request-dispatch)
-
-## 测试使用
-
-域名准备，域名prod.ppapi.cn，beta.ppapi.cn，alpha.ppapi.cn，alpha1.ppapi.cn分别代表正式环境和其他环境。
-
-部署whoami服务
+域名准备，域名prod.ppapi.cn，beta.ppapi.cn，alpha.ppapi.cn分别代表正式环境，alpha环境，beta环境。
 
 ```yaml
+# 部署whoami服务
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -132,7 +130,6 @@ spec:
   selector:
     app: whoami
 ---
-
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -171,16 +168,6 @@ spec:
                 name: whoami-svc
                 port:
                   number: 80
-    - host: alpha1.ppapi.cn
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: whoami-svc
-                port:
-                  number: 80
 ```
 
 配置traefik启动参数
@@ -202,7 +189,7 @@ experimental:
 http:
   routers:
     api1:
-      rule: host(`prod.ppapi.cn`)
+      rule: host(`test.ppapi.cn`)
       service: svc
       entryPoints:
         - web
@@ -214,33 +201,36 @@ http:
     svc:
       loadBalancer:
         servers:
-          - url: "http://localhost:8999"
+          # 默认流量走prod
+          - url: "http://prod.ppapi.cn"
 
   middlewares:
+    # 流量转发
     request-dispatch:
       plugin:
-        request-dispatch:               # 转发插件
+        request-dispatch: # 转发插件
           logLevel: DEBUG
           markHeader: TAG               # 染色标记header
           markHosts:
-            alpha:                      # 如果TAG: alpha 转发到这里
+            alpha: # 如果TAG: alpha 转发到这里
               - http://alpha.ppapi.cn
               - http://alpha1.ppapi.cn
             beta:
               - http://beta.ppapi.cn
 
+    #  流量染色
     request-mark:
       plugin:
         request-mark: # 染色插件
-          serviceName: api
+          serviceName: ppapi
           logLevel: DEBUG
-          redisAddr: redis.com
-          redisPassword: "***"
-          redisRulesKey: "abc"
+          redisAddr: ""
+          redisPassword: ""
+          redisRulesKey: ""
           redisRuleMaxLen: 256
           redisLoadInterval: 15
           redisEnable: false
-          markKey: TAG                    # 如果匹配规则则设置 TAG: [markValue]
+          markKey: TAG
           headerVersion: version
           headerIdentify: identify
           cookieIdentify: identify-cookie
@@ -251,7 +241,7 @@ http:
               enable: true
               priority: 100
               type: identify
-              markvalue: beta
+              markValue: beta
               maxVersion: 3.3.3
               minVersion: 2.2.2
               userIds:
@@ -264,7 +254,7 @@ http:
               enable: true
               priority: 100
               type: identify
-              markvalue: alpha
+              markValue: alpha
               maxVersion: 3.3.3
               minVersion: 2.2.2
               userIds:
@@ -277,7 +267,7 @@ http:
 测试
 
 ```text
-➜  ~ http prod.ppapi.cn identify:A001
+➜  ~ http test.ppapi.cn identify:A001
 HTTP/1.1 200 OK
 Content-Length: 416
 Content-Type: text/plain; charset=utf-8
@@ -304,7 +294,7 @@ X-Real-Ip: 127.0.0.1
 ```
 
 ```text 
-➜  ~ http prod.ppapi.cn identify:A003
+➜  ~ http test.ppapi.cn identify:A003
 HTTP/1.1 200 OK
 Content-Length: 418
 Content-Type: text/plain; charset=utf-8
@@ -323,7 +313,7 @@ Accept-Encoding: gzip, deflate
 Identify: A003
 Tag: alpha                                          # alpha 染色
 X-Forwarded-For: 127.0.0.1, 10.42.0.1
-X-Forwarded-Host: prod.ppapi.cn
+X-Forwarded-Host: test.ppapi.cn
 X-Forwarded-Port: 80
 X-Forwarded-Proto: http
 X-Forwarded-Server: traefik-758cd5fc85-r8fr4
@@ -332,7 +322,7 @@ X-Real-Ip: 127.0.0.1
 
 ```text 
 # 没有被染色
-➜  ~ http prod.ppapi.cn identify:A005
+➜  ~ http test.ppapi.cn identify:A005
 HTTP/1.1 200 OK
 Content-Length: 383
 Content-Type: text/plain; charset=utf-8
@@ -343,13 +333,13 @@ IP: 127.0.0.1
 IP: 172.17.0.2
 RemoteAddr: 172.17.0.1:61106
 GET / HTTP/1.1
-Host: prod.ppapi.cn
+Host: test.ppapi.cn
 User-Agent: HTTPie/2.6.0
 Accept: */*
 Accept-Encoding: gzip, deflate
 Identify: A005
 X-Forwarded-For: 127.0.0.1
-X-Forwarded-Host: prod.ppapi.cn
+X-Forwarded-Host: test.ppapi.cn
 X-Forwarded-Port: 80
 X-Forwarded-Proto: http
 X-Forwarded-Server: sugardeMacBook-Pro.local
