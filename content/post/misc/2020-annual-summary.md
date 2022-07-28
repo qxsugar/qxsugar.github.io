@@ -2,8 +2,8 @@
 title: "2020回顾总结"
 date: "2021-03-04T11:20:20+08:00"
 draft: "false"
-tags: ["life", "年终总结"]
-categories: ["life"]
+tags: ["生活", "年终总结"]
+categories: ["生活"]
 ---
 
 2020忽如奇来的疫情，打破了一切，打得所有人措手不及！
@@ -143,8 +143,6 @@ categories: ["life"]
 
 > ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2020/39.jpg)
 >
-> 后来死了！哎。。。
->
 > ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2020/40.jpg)
 >
 > 后来死了
@@ -161,4 +159,6 @@ categories: ["life"]
 
 > ![](https://blog-1252018492.cos.ap-nanjing.myqcloud.com/annual/2020/43.jpg)
 
+```text
 后来。记忆缺失了
+```
