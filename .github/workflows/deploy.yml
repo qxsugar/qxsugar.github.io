@@ -1,6 +1,8 @@
 name: deploy to github page
 on:
-  - push
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -26,4 +28,4 @@ jobs:
           external_repository: qxsugar/qxsugar.github.io
           personal_token: ${{ secrets.ACTION_ACCESS_TOKEN }}
           publish_dir: ./public
-          publish_branch: master
+          publish_branch: gh-pages
