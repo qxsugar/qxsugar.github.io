@@ -1,0 +1,574 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>Traefik 源码解读，TCP的完整生命周期 - 鲜衣怒马少年时，不负韶华行且知</title><meta name=renderer content="webkit"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta http-equiv=cache-control content="no-transform"><meta http-equiv=cache-control content="no-siteapp"><meta name=theme-color content="#f8f5ec"><meta name=msapplication-navbutton-color content="#f8f5ec"><meta name=apple-mobile-web-app-capable content="yes"><meta name=apple-mobile-web-app-status-bar-style content="#f8f5ec"><meta name=author content="qxsugar"><meta name=description content="下面我们来正式解读traefik源码。 traefik实现了很多协议（tcp，udp等），我们的目标解读一个http请求到了traefik，发"><meta name=generator content="Hugo 0.104.3 with theme even"><link rel=canonical href=https://me.ppapi.cn/post/traefik/traefik%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E4%B8%80%E4%B8%AA%E5%AE%8C%E6%95%B4%E7%9A%84tcp%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F/><link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png><link rel=manifest href=/manifest.json><link rel=mask-icon href=/safari-pinned-tab.svg color=#5bbad5><link href=/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css rel=stylesheet><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin=anonymous><link rel=stylesheet href=/css/syntax.css><meta property="og:title" content="Traefik 源码解读，TCP的完整生命周期"><meta property="og:description" content="下面我们来正式解读traefik源码。 traefik实现了很多协议（tcp，udp等），我们的目标解读一个http请求到了traefik，发"><meta property="og:type" content="article"><meta property="og:url" content="https://me.ppapi.cn/post/traefik/traefik%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E4%B8%80%E4%B8%AA%E5%AE%8C%E6%95%B4%E7%9A%84tcp%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F/"><meta property="article:section" content="post"><meta property="article:published_time" content="2022-02-25T18:45:10+08:00"><meta property="article:modified_time" content="2022-02-25T18:45:10+08:00"><meta itemprop=name content="Traefik 源码解读，TCP的完整生命周期"><meta itemprop=description content="下面我们来正式解读traefik源码。 traefik实现了很多协议（tcp，udp等），我们的目标解读一个http请求到了traefik，发"><meta itemprop=datePublished content="2022-02-25T18:45:10+08:00"><meta itemprop=dateModified content="2022-02-25T18:45:10+08:00"><meta itemprop=wordCount content="3174"><meta itemprop=keywords content="traefik,"><meta name=twitter:card content="summary"><meta name=twitter:title content="Traefik 源码解读，TCP的完整生命周期"><meta name=twitter:description content="下面我们来正式解读traefik源码。 traefik实现了很多协议（tcp，udp等），我们的目标解读一个http请求到了traefik，发"><!--[if lte IE 9]><script src=https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js></script><![endif]--><!--[if lt IE 9]><script src=https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js></script>
+<script src=https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js></script><![endif]--></head><body><div id=mobile-navbar class=mobile-navbar><div class=mobile-header-logo><a href=/ class=logo>Magic Conch</a></div><div class=mobile-navbar-icon><span></span>
+<span></span>
+<span></span></div></div><nav id=mobile-menu class="mobile-menu slideout-menu"><ul class=mobile-menu-list><a href=/><li class=mobile-menu-item>Home</li></a><a href=/post/><li class=mobile-menu-item>Archives</li></a><a href=/tags/><li class=mobile-menu-item>Tags</li></a><a href=/categories/><li class=mobile-menu-item>Categories</li></a><a href=/about><li class=mobile-menu-item>About</li></a></ul></nav><div class=container id=mobile-panel><header id=header class=header><div class=logo-wrapper><a href=/ class=logo>Magic Conch</a></div><nav class=site-navbar><ul id=menu class=menu><li class=menu-item><a class=menu-item-link href=/>Home</a></li><li class=menu-item><a class=menu-item-link href=/post/>Archives</a></li><li class=menu-item><a class=menu-item-link href=/tags/>Tags</a></li><li class=menu-item><a class=menu-item-link href=/categories/>Categories</a></li><li class=menu-item><a class=menu-item-link href=/about>About</a></li></ul></nav></header><main id=main class=main><div class=content-wrapper><div id=content class=content><article class=post><header class=post-header><h1 class=post-title>Traefik 源码解读，TCP的完整生命周期</h1><div class=post-meta><span class=post-time>2022-02-25</span><div class=post-category><a href=/categories/traefik/>traefik</a></div></div></header><div class=post-toc id=post-toc><h2 class=post-toc-title>Contents</h2><div class="post-toc-content always-active"><nav id=TableOfContents><ul><li><ul><li><a href=#traefik目录结构>Traefik目录结构</a></li><li><a href=#关键接口>关键接口</a></li><li><a href=#代码解读>代码解读</a><ul><li><a href=#tcp创建>TCP创建</a></li><li><a href=#配置热更新>配置热更新</a></li><li><a href=#请求处理>请求处理</a></li></ul></li><li><a href=#预留问题>预留问题。</a></li><li><a href=#总结>总结</a></li></ul></li></ul></nav></div></div><div class=post-content><p>下面我们来正式解读traefik源码。</p><p>traefik实现了很多协议（tcp，udp等），我们的目标解读一个http请求到了traefik，发送了什么变化，如何被反向代理到目标去。</p><h2 id=traefik目录结构>Traefik目录结构</h2><p>traefik 核心代码在cmd目录和pkg目录</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>pkg
+</span></span><span class=line><span class=cl>├── api                         # traefik的api实现，比如dashboard api等
+</span></span><span class=line><span class=cl>├── cli                         # 加载配置
+</span></span><span class=line><span class=cl>├── collector                   # traefik匿名收集信息
+</span></span><span class=line><span class=cl>├── config                      # 配置信息
+</span></span><span class=line><span class=cl>├── healthcheck                 # 对endpoint server做健康检查
+</span></span><span class=line><span class=cl>├── ip                          # 对ip的一些操作
+</span></span><span class=line><span class=cl>├── job                         # job任务
+</span></span><span class=line><span class=cl>├── log                         # log处理
+</span></span><span class=line><span class=cl>├── metrics                     # 指标处理
+</span></span><span class=line><span class=cl>├── middlewares                 # traefik内置中间键
+</span></span><span class=line><span class=cl>├── pilot                       # 链接traefik pilot操作
+</span></span><span class=line><span class=cl>├── ping                        # ping
+</span></span><span class=line><span class=cl>├── plugins                     # 插件动态加载和解析
+</span></span><span class=line><span class=cl>├── provider                    # 提供者，提供endpoint等
+</span></span><span class=line><span class=cl>├── rules                       # 规则，核心匹配规则
+</span></span><span class=line><span class=cl>├── safe                        # 关键的goroutine操作
+</span></span><span class=line><span class=cl>├── server                      # 核心server，包括tcp，udp等server
+</span></span><span class=line><span class=cl>├── tcp                         # tcp的转换操作
+</span></span><span class=line><span class=cl>├── tracing                     # 跟踪
+</span></span><span class=line><span class=cl>├── udp                         # udp的转换操作
+</span></span></code></pre></td></tr></table></div></div><h2 id=关键接口>关键接口</h2><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// 这个接口很重要，很多关键操作都是通过这个接口传递的
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>type</span> <span class=nx>Handler</span> <span class=kd>interface</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=nf>ServeTCP</span><span class=p>(</span><span class=nx>conn</span> <span class=nx>WriteCloser</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 这个是HTTP层的，作用同上
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>type</span> <span class=nx>Handler</span> <span class=kd>interface</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=nf>ServeHTTP</span><span class=p>(</span><span class=nx>rw</span> <span class=nx>http</span><span class=p>.</span><span class=nx>ResponseWriter</span><span class=p>,</span> <span class=nx>req</span> <span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=代码解读>代码解读</h2><p>我们的目标是tcp的流程，所以不关心其他模块的代码了。</p><h3 id=tcp创建>TCP创建</h3><p>代码启动入口<code>cmd/traefik/traefik.go</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// traefik启动最终启动了这个
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=nf>runCmd</span><span class=p>(</span><span class=nx>staticConfiguration</span> <span class=o>*</span><span class=nx>static</span><span class=p>.</span><span class=nx>Configuration</span><span class=p>)</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// 配置静态配置
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nf>configureLogging</span><span class=p>(</span><span class=nx>staticConfiguration</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   
+</span></span><span class=line><span class=cl>   <span class=c1>// 创建服务，包括tcp和udp服务
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>svr</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nf>setupServer</span><span class=p>(</span><span class=nx>staticConfiguration</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	
+</span></span><span class=line><span class=cl>   <span class=c1>// 启动服务，这个方法会启动多个goroutine
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>svr</span><span class=p>.</span><span class=nf>Start</span><span class=p>(</span><span class=nx>ctx</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 这里生成了tcp和udp的server，放在一个对象里返回
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=nf>setupServer</span><span class=p>(</span><span class=nx>staticConfiguration</span> <span class=o>*</span><span class=nx>static</span><span class=p>.</span><span class=nx>Configuration</span><span class=p>)</span> <span class=p>(</span><span class=o>*</span><span class=nx>server</span><span class=p>.</span><span class=nx>Server</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=nx>serverEntryPointsTCP</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>server</span><span class=p>.</span><span class=nf>NewTCPEntryPoints</span><span class=p>(</span><span class=nx>staticConfiguration</span><span class=p>.</span><span class=nx>EntryPoints</span><span class=p>,</span> <span class=nx>staticConfiguration</span><span class=p>.</span><span class=nx>HostResolver</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>serverEntryPointsUDP</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>server</span><span class=p>.</span><span class=nf>NewUDPEntryPoints</span><span class=p>(</span><span class=nx>staticConfiguration</span><span class=p>.</span><span class=nx>EntryPoints</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里会watech动态配置的变更（http.yaml），文件变更会调用switchRouter
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>watcher</span><span class=p>.</span><span class=nf>AddListener</span><span class=p>(</span><span class=nf>switchRouter</span><span class=p>(</span><span class=nx>routerFactory</span><span class=p>,</span> <span class=nx>serverEntryPointsTCP</span><span class=p>,</span> <span class=nx>serverEntryPointsUDP</span><span class=p>,</span> <span class=nx>aviator</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>server</span><span class=p>.</span><span class=nf>NewServer</span><span class=p>(</span><span class=nx>routinesPool</span><span class=p>,</span> <span class=nx>serverEntryPointsTCP</span><span class=p>,</span> <span class=nx>serverEntryPointsUDP</span><span class=p>,</span> <span class=nx>watcher</span><span class=p>,</span> <span class=nx>chainBuilder</span><span class=p>,</span> <span class=nx>accessLog</span><span class=p>),</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>NewTCPEntryPoints</code>方法实现在<code>pkg/server/server_entrypoint_tcp.go</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>type</span> <span class=nx>TCPEntryPoints</span> <span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=o>*</span><span class=nx>TCPEntryPoint</span>   
+</span></span><span class=line><span class=cl><span class=c1>// TCPEntryPoints 这个类型是个map的别名，主要是放置多个tcp对象
+</span></span></span><span class=line><span class=cl><span class=c1>// 如
+</span></span></span><span class=line><span class=cl><span class=c1>//entryPoints:
+</span></span></span><span class=line><span class=cl><span class=c1>//  web:
+</span></span></span><span class=line><span class=cl><span class=c1>//    address: :80
+</span></span></span><span class=line><span class=cl><span class=c1>//  websecure:
+</span></span></span><span class=line><span class=cl><span class=c1>//    address: :443
+</span></span></span><span class=line><span class=cl><span class=c1>// 这个配置会生成两个tcp监听，监听80和443
+</span></span></span><span class=line><span class=cl><span class=c1>// map[web] =&gt; 80
+</span></span></span><span class=line><span class=cl><span class=c1>// map[websecure] =&gt; 443
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>NewTCPEntryPoints</span><span class=p>(</span><span class=nx>entryPointsConfig</span> <span class=nx>static</span><span class=p>.</span><span class=nx>EntryPoints</span><span class=p>,</span> <span class=nx>hostResolverConfig</span> <span class=o>*</span><span class=nx>types</span><span class=p>.</span><span class=nx>HostResolverConfig</span><span class=p>)</span> <span class=p>(</span><span class=nx>TCPEntryPoints</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=nx>serverEntryPointsTCP</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>(</span><span class=nx>TCPEntryPoints</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里建立了[web, websecure]的tcp
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=k>for</span> <span class=nx>entryPointName</span><span class=p>,</span> <span class=nx>config</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>entryPointsConfig</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>serverEntryPointsTCP</span><span class=p>[</span><span class=nx>entryPointName</span><span class=p>],</span> <span class=nx>err</span> <span class=p>=</span> <span class=nf>NewTCPEntryPoint</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>config</span><span class=p>,</span> <span class=nx>hostResolverConfig</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>serverEntryPointsTCP</span><span class=p>,</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>NewTCPEntryPoint</code>的实现也在<code>pkg/server/server_entrypoint_tcp.go</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// NewTCPEntryPoint主要返回TCPEntryPoint对象
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=nf>NewTCPEntryPoint</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>configuration</span> <span class=o>*</span><span class=nx>static</span><span class=p>.</span><span class=nx>EntryPoint</span><span class=p>,</span> <span class=nx>hostResolverConfig</span> <span class=o>*</span><span class=nx>types</span><span class=p>.</span><span class=nx>HostResolverConfig</span><span class=p>)</span> <span class=p>(</span><span class=o>*</span><span class=nx>TCPEntryPoint</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// 监听tcp
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>listener</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nf>buildListener</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>configuration</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// tcp 路由
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>rt</span> <span class=o>:=</span> <span class=o>&amp;</span><span class=nx>tcp</span><span class=p>.</span><span class=nx>Router</span><span class=p>{}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>reqDecorator</span> <span class=o>:=</span> <span class=nx>requestdecorator</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=nx>hostResolverConfig</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// tcp http server
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>httpServer</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nf>createHTTPServer</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>listener</span><span class=p>,</span> <span class=nx>configuration</span><span class=p>,</span> <span class=kc>true</span><span class=p>,</span> <span class=nx>reqDecorator</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>rt</span><span class=p>.</span><span class=nf>HTTPForwarder</span><span class=p>(</span><span class=nx>httpServer</span><span class=p>.</span><span class=nx>Forwarder</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里创建了一个tcpSwitcher，这个是实现配置动态更新的核心对象
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>tcpSwitcher</span> <span class=o>:=</span> <span class=o>&amp;</span><span class=nx>tcp</span><span class=p>.</span><span class=nx>HandlerSwitcher</span><span class=p>{}</span>
+</span></span><span class=line><span class=cl>   <span class=nx>tcpSwitcher</span><span class=p>.</span><span class=nf>Switch</span><span class=p>(</span><span class=nx>rt</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=o>&amp;</span><span class=nx>TCPEntryPoint</span><span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>listener</span><span class=p>:</span>               <span class=nx>listener</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>switcher</span><span class=p>:</span>               <span class=nx>tcpSwitcher</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>transportConfiguration</span><span class=p>:</span> <span class=nx>configuration</span><span class=p>.</span><span class=nx>Transport</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>tracker</span><span class=p>:</span>                <span class=nx>tracker</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>httpServer</span><span class=p>:</span>             <span class=nx>httpServer</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>httpsServer</span><span class=p>:</span>            <span class=nx>httpsServer</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>http3Server</span><span class=p>:</span>            <span class=nx>h3server</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>   <span class=p>},</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>到这里基本上traefik已经创建好tcp了。
+<code>Start()</code>之后就可以请求了，但是这时候配置还没加载进来，所以对于刚刚启动的traefik，请求是返回404的。</p><h3 id=配置热更新>配置热更新</h3><p>代码启动入口<code>cmd/traefik/traefik.go</code>有个关键代码</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=nx>watcher</span><span class=p>.</span><span class=nf>AddListener</span><span class=p>(</span><span class=nf>switchRouter</span><span class=p>(</span><span class=nx>routerFactory</span><span class=p>,</span> <span class=nx>serverEntryPointsTCP</span><span class=p>,</span> <span class=nx>serverEntryPointsUDP</span><span class=p>,</span> <span class=nx>aviator</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// switchRouter 实现
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=nf>switchRouter</span><span class=p>(</span><span class=nx>routerFactory</span> <span class=o>*</span><span class=nx>server</span><span class=p>.</span><span class=nx>RouterFactory</span><span class=p>,</span> <span class=nx>serverEntryPointsTCP</span> <span class=nx>server</span><span class=p>.</span><span class=nx>TCPEntryPoints</span><span class=p>,</span> <span class=nx>serverEntryPointsUDP</span> <span class=nx>server</span><span class=p>.</span><span class=nx>UDPEntryPoints</span><span class=p>,</span> <span class=nx>aviator</span> <span class=o>*</span><span class=nx>pilot</span><span class=p>.</span><span class=nx>Pilot</span><span class=p>)</span> <span class=kd>func</span><span class=p>(</span><span class=nx>conf</span> <span class=nx>dynamic</span><span class=p>.</span><span class=nx>Configuration</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=kd>func</span><span class=p>(</span><span class=nx>conf</span> <span class=nx>dynamic</span><span class=p>.</span><span class=nx>Configuration</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 主要构建了tcp的routers和udp的routers
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=nx>routers</span><span class=p>,</span> <span class=nx>udpRouters</span> <span class=o>:=</span> <span class=nx>routerFactory</span><span class=p>.</span><span class=nf>CreateRouters</span><span class=p>(</span><span class=nx>rtConf</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		
+</span></span><span class=line><span class=cl>      <span class=c1>// 这里把重新build后的routers替换了之前的routers，实现了动态配置更新
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=nx>serverEntryPointsTCP</span><span class=p>.</span><span class=nf>Switch</span><span class=p>(</span><span class=nx>routers</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=nx>serverEntryPointsUDP</span><span class=p>.</span><span class=nf>Switch</span><span class=p>(</span><span class=nx>udpRouters</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>routerFactory.CreateRouters</code>的实现在<code>pkg/server/routerfactory.go</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>f</span> <span class=o>*</span><span class=nx>RouterFactory</span><span class=p>)</span> <span class=nf>CreateRouters</span><span class=p>(</span><span class=nx>rtConf</span> <span class=o>*</span><span class=nx>runtime</span><span class=p>.</span><span class=nx>Configuration</span><span class=p>)</span> <span class=p>(</span><span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=o>*</span><span class=nx>tcpCore</span><span class=p>.</span><span class=nx>Router</span><span class=p>,</span> <span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=nx>udpCore</span><span class=p>.</span><span class=nx>Handler</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// service
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>serviceManager</span> <span class=o>:=</span> <span class=nx>f</span><span class=p>.</span><span class=nx>managerFactory</span><span class=p>.</span><span class=nf>Build</span><span class=p>(</span><span class=nx>rtConf</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// middlewares 
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>middlewaresBuilder</span> <span class=o>:=</span> <span class=nx>middleware</span><span class=p>.</span><span class=nf>NewBuilder</span><span class=p>(</span><span class=nx>rtConf</span><span class=p>.</span><span class=nx>Middlewares</span><span class=p>,</span> <span class=nx>serviceManager</span><span class=p>,</span> <span class=nx>f</span><span class=p>.</span><span class=nx>pluginBuilder</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// router
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>routerManager</span> <span class=o>:=</span> <span class=nx>router</span><span class=p>.</span><span class=nf>NewManager</span><span class=p>(</span><span class=nx>rtConf</span><span class=p>,</span> <span class=nx>serviceManager</span><span class=p>,</span> <span class=nx>middlewaresBuilder</span><span class=p>,</span> <span class=nx>f</span><span class=p>.</span><span class=nx>chainBuilder</span><span class=p>,</span> <span class=nx>f</span><span class=p>.</span><span class=nx>metricsRegistry</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>handlersNonTLS</span> <span class=o>:=</span> <span class=nx>routerManager</span><span class=p>.</span><span class=nf>BuildHandlers</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>f</span><span class=p>.</span><span class=nx>entryPointsTCP</span><span class=p>,</span> <span class=kc>false</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=nx>handlersTLS</span> <span class=o>:=</span> <span class=nx>routerManager</span><span class=p>.</span><span class=nf>BuildHandlers</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>f</span><span class=p>.</span><span class=nx>entryPointsTCP</span><span class=p>,</span> <span class=kc>true</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// TCP
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>svcTCPManager</span> <span class=o>:=</span> <span class=nx>tcp</span><span class=p>.</span><span class=nf>NewManager</span><span class=p>(</span><span class=nx>rtConf</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>middlewaresTCPBuilder</span> <span class=o>:=</span> <span class=nx>middlewaretcp</span><span class=p>.</span><span class=nf>NewBuilder</span><span class=p>(</span><span class=nx>rtConf</span><span class=p>.</span><span class=nx>TCPMiddlewares</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>   <span class=nx>rtTCPManager</span> <span class=o>:=</span> <span class=nx>routertcp</span><span class=p>.</span><span class=nf>NewManager</span><span class=p>(</span><span class=nx>rtConf</span><span class=p>,</span> <span class=nx>svcTCPManager</span><span class=p>,</span> <span class=nx>middlewaresTCPBuilder</span><span class=p>,</span> <span class=nx>handlersNonTLS</span><span class=p>,</span> <span class=nx>handlersTLS</span><span class=p>,</span> <span class=nx>f</span><span class=p>.</span><span class=nx>tlsManager</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// 主要是这个routersTCP，负责处理TCP请求的router
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>routersTCP</span> <span class=o>:=</span> <span class=nx>rtTCPManager</span><span class=p>.</span><span class=nf>BuildHandlers</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>f</span><span class=p>.</span><span class=nx>entryPointsTCP</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>routersTCP</span><span class=p>,</span> <span class=nx>routersUDP</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>BuildHandlers</code>的实现在<code>pkg/router/router.go</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// 这里生成了一个值是tcp.Router的map
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>m</span> <span class=o>*</span><span class=nx>Manager</span><span class=p>)</span> <span class=nf>BuildHandlers</span><span class=p>(</span><span class=nx>rootCtx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>entryPoints</span> <span class=p>[]</span><span class=kt>string</span><span class=p>)</span> <span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=o>*</span><span class=nx>tcp</span><span class=p>.</span><span class=nx>Router</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=nx>entryPointsRouters</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nf>getTCPRouters</span><span class=p>(</span><span class=nx>rootCtx</span><span class=p>,</span> <span class=nx>entryPoints</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=nx>entryPointsRoutersHTTP</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nf>getHTTPRouters</span><span class=p>(</span><span class=nx>rootCtx</span><span class=p>,</span> <span class=nx>entryPoints</span><span class=p>,</span> <span class=kc>true</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>entryPointHandlers</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>(</span><span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=o>*</span><span class=nx>tcp</span><span class=p>.</span><span class=nx>Router</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>entryPointName</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>entryPoints</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>entryPointName</span> <span class=o>:=</span> <span class=nx>entryPointName</span>
+</span></span><span class=line><span class=cl>      <span class=nx>routers</span> <span class=o>:=</span> <span class=nx>entryPointsRouters</span><span class=p>[</span><span class=nx>entryPointName</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>      <span class=c1>// 这里返回了一个hanlder，这个就是处理请求的handler
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=nx>handler</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nf>buildEntryPointHandler</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>routers</span><span class=p>,</span> <span class=nx>entryPointsRoutersHTTP</span><span class=p>[</span><span class=nx>entryPointName</span><span class=p>],</span> <span class=nx>m</span><span class=p>.</span><span class=nx>httpHandlers</span><span class=p>[</span><span class=nx>entryPointName</span><span class=p>],</span> <span class=nx>m</span><span class=p>.</span><span class=nx>httpsHandlers</span><span class=p>[</span><span class=nx>entryPointName</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>      <span class=nx>entryPointHandlers</span><span class=p>[</span><span class=nx>entryPointName</span><span class=p>]</span> <span class=p>=</span> <span class=nx>handler</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>entryPointHandlers</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// buildEntryPointHandler 方法实现
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>m</span> <span class=o>*</span><span class=nx>Manager</span><span class=p>)</span> <span class=nf>buildEntryPointHandler</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>configs</span> <span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=o>*</span><span class=nx>runtime</span><span class=p>.</span><span class=nx>RouterInfo</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=nx>router</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>rules</span><span class=p>.</span><span class=nf>NewRouter</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>for</span> <span class=nx>routerName</span><span class=p>,</span> <span class=nx>routerConfig</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>configs</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 这里调用buildRouterHandler去build一个handler
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=nx>handler</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nf>buildRouterHandler</span><span class=p>(</span><span class=nx>ctxRouter</span><span class=p>,</span> <span class=nx>routerName</span><span class=p>,</span> <span class=nx>routerConfig</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=nx>err</span> <span class=p>=</span> <span class=nx>router</span><span class=p>.</span><span class=nf>AddRoute</span><span class=p>(</span><span class=nx>routerConfig</span><span class=p>.</span><span class=nx>Rule</span><span class=p>,</span> <span class=nx>routerConfig</span><span class=p>.</span><span class=nx>Priority</span><span class=p>,</span> <span class=nx>handler</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里增加一个recovery的middle
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>chain</span> <span class=o>:=</span> <span class=nx>alice</span><span class=p>.</span><span class=nf>New</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>   <span class=nx>chain</span> <span class=p>=</span> <span class=nx>chain</span><span class=p>.</span><span class=nf>Append</span><span class=p>(</span><span class=kd>func</span><span class=p>(</span><span class=nx>next</span> <span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>recovery</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>next</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=p>})</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>chain</span><span class=p>.</span><span class=nf>Then</span><span class=p>(</span><span class=nx>router</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// buildRouterHandler 方法实现
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>m</span> <span class=o>*</span><span class=nx>Manager</span><span class=p>)</span> <span class=nf>buildRouterHandler</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>routerName</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>routerConfig</span> <span class=o>*</span><span class=nx>runtime</span><span class=p>.</span><span class=nx>RouterInfo</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>       
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里调用 buildHTTPHandler 去获取一个handler对象
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>handler</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nf>buildHTTPHandler</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>routerConfig</span><span class=p>,</span> <span class=nx>routerName</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里把handler和其他的合并成一个handler
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>handlerWithAccessLog</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>alice</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=kd>func</span><span class=p>(</span><span class=nx>next</span> <span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>accesslog</span><span class=p>.</span><span class=nf>NewFieldHandler</span><span class=p>(</span><span class=nx>next</span><span class=p>,</span> <span class=nx>accesslog</span><span class=p>.</span><span class=nx>RouterName</span><span class=p>,</span> <span class=nx>routerName</span><span class=p>,</span> <span class=kc>nil</span><span class=p>),</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl>   <span class=p>}).</span><span class=nf>Then</span><span class=p>(</span><span class=nx>handler</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>m</span><span class=p>.</span><span class=nx>routerHandlers</span><span class=p>[</span><span class=nx>routerName</span><span class=p>],</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// buildHTTPHandler 实现
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>m</span> <span class=o>*</span><span class=nx>Manager</span><span class=p>)</span> <span class=nf>buildHTTPHandler</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>router</span> <span class=o>*</span><span class=nx>runtime</span><span class=p>.</span><span class=nx>RouterInfo</span><span class=p>,</span> <span class=nx>routerName</span> <span class=kt>string</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里调用了BuildHTTP获取一个lb
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>sHandler</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nx>serviceManager</span><span class=p>.</span><span class=nf>BuildHTTP</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>router</span><span class=p>.</span><span class=nx>Service</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里把lb和其他的Middlewares合并成一个chain
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>mHandler</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nx>middlewaresBuilder</span><span class=p>.</span><span class=nf>BuildChain</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>router</span><span class=p>.</span><span class=nx>Middlewares</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>tHandler</span> <span class=o>:=</span> <span class=kd>func</span><span class=p>(</span><span class=nx>next</span> <span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>tracing</span><span class=p>.</span><span class=nf>NewForwarder</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>routerName</span><span class=p>,</span> <span class=nx>router</span><span class=p>.</span><span class=nx>Service</span><span class=p>,</span> <span class=nx>next</span><span class=p>),</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>chain</span> <span class=o>:=</span> <span class=nx>alice</span><span class=p>.</span><span class=nf>New</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>if</span> <span class=nx>m</span><span class=p>.</span><span class=nx>metricsRegistry</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=o>&amp;&amp;</span> <span class=nx>m</span><span class=p>.</span><span class=nx>metricsRegistry</span><span class=p>.</span><span class=nf>IsRouterEnabled</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>chain</span> <span class=p>=</span> <span class=nx>chain</span><span class=p>.</span><span class=nf>Append</span><span class=p>(</span><span class=nx>metricsMiddle</span><span class=p>.</span><span class=nf>WrapRouterHandler</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>m</span><span class=p>.</span><span class=nx>metricsRegistry</span><span class=p>,</span> <span class=nx>routerName</span><span class=p>,</span> <span class=nx>provider</span><span class=p>.</span><span class=nf>GetQualifiedName</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>router</span><span class=p>.</span><span class=nx>Service</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl>   
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>chain</span><span class=p>.</span><span class=nf>Extend</span><span class=p>(</span><span class=o>*</span><span class=nx>mHandler</span><span class=p>).</span><span class=nf>Append</span><span class=p>(</span><span class=nx>tHandler</span><span class=p>).</span><span class=nf>Then</span><span class=p>(</span><span class=nx>sHandler</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>BuildHTTP</code>实现在<code>pkg/service/service.go</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>m</span> <span class=o>*</span><span class=nx>Manager</span><span class=p>)</span> <span class=nf>BuildHTTP</span><span class=p>(</span><span class=nx>rootCtx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>serviceName</span> <span class=kt>string</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=kd>var</span> <span class=nx>lb</span> <span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span>
+</span></span><span class=line><span class=cl>   <span class=k>switch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=k>case</span> <span class=nx>conf</span><span class=p>.</span><span class=nx>LoadBalancer</span> <span class=o>!=</span> <span class=kc>nil</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>      <span class=kd>var</span> <span class=nx>err</span> <span class=kt>error</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 这里调用getLoadBalancerServiceHandler去获取一个lb
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=nx>lb</span><span class=p>,</span> <span class=nx>err</span> <span class=p>=</span> <span class=nx>m</span><span class=p>.</span><span class=nf>getLoadBalancerServiceHandler</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>serviceName</span><span class=p>,</span> <span class=nx>conf</span><span class=p>.</span><span class=nx>LoadBalancer</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>lb</span><span class=p>,</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// getLoadBalancerServiceHandler 实现
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>m</span> <span class=o>*</span><span class=nx>Manager</span><span class=p>)</span> <span class=nf>getLoadBalancerServiceHandler</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>serviceName</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>service</span> <span class=o>*</span><span class=nx>dynamic</span><span class=p>.</span><span class=nx>ServersLoadBalancer</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=nx>roundTripper</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nx>roundTripperManager</span><span class=p>.</span><span class=nf>Get</span><span class=p>(</span><span class=nx>service</span><span class=p>.</span><span class=nx>ServersTransport</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里返回了ReverseProxy对象
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>fwd</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nf>buildProxy</span><span class=p>(</span><span class=nx>service</span><span class=p>.</span><span class=nx>PassHostHeader</span><span class=p>,</span> <span class=nx>service</span><span class=p>.</span><span class=nx>ResponseForwarding</span><span class=p>,</span> <span class=nx>roundTripper</span><span class=p>,</span> <span class=nx>m</span><span class=p>.</span><span class=nx>bufferPool</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>alHandler</span> <span class=o>:=</span> <span class=kd>func</span><span class=p>(</span><span class=nx>next</span> <span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>)</span> <span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>accesslog</span><span class=p>.</span><span class=nf>NewFieldHandler</span><span class=p>(</span><span class=nx>next</span><span class=p>,</span> <span class=nx>accesslog</span><span class=p>.</span><span class=nx>ServiceName</span><span class=p>,</span> <span class=nx>serviceName</span><span class=p>,</span> <span class=nx>accesslog</span><span class=p>.</span><span class=nx>AddServiceFields</span><span class=p>),</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl>   <span class=nx>chain</span> <span class=o>:=</span> <span class=nx>alice</span><span class=p>.</span><span class=nf>New</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>   
+</span></span><span class=line><span class=cl>   <span class=c1>// 这个pipelining对http反向代理做兼容的
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>handler</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>chain</span><span class=p>.</span><span class=nf>Then</span><span class=p>(</span><span class=nx>pipelining</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>fwd</span><span class=p>,</span> <span class=s>&#34;pipelining&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里调用了getLoadBalancer去获取一个lb，传入了fwd对象
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>balancer</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>m</span><span class=p>.</span><span class=nf>getLoadBalancer</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>serviceName</span><span class=p>,</span> <span class=nx>service</span><span class=p>,</span> <span class=nx>fwd</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=nx>m</span><span class=p>.</span><span class=nx>balancers</span><span class=p>[</span><span class=nx>serviceName</span><span class=p>]</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>m</span><span class=p>.</span><span class=nx>balancers</span><span class=p>[</span><span class=nx>serviceName</span><span class=p>],</span> <span class=nx>balancer</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=c1>// emptybackendhandler很有意思，如果找不到有用的服务，就给一个默认的
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=k>return</span> <span class=nx>emptybackendhandler</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=nx>balancer</span><span class=p>),</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>m</span> <span class=o>*</span><span class=nx>Manager</span><span class=p>)</span> <span class=nf>getLoadBalancer</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>serviceName</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>service</span> <span class=o>*</span><span class=nx>dynamic</span><span class=p>.</span><span class=nx>ServersLoadBalancer</span><span class=p>,</span> <span class=nx>fwd</span> <span class=nx>http</span><span class=p>.</span><span class=nx>Handler</span><span class=p>)</span> <span class=p>(</span><span class=nx>healthcheck</span><span class=p>.</span><span class=nx>BalancerStatusHandler</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里返回了RoundRobin对象，这个对象是实现了ServeHTTP(w http.ResponseWriter, req *http.Request)的
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>lb</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>roundrobin</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=nx>fwd</span><span class=p>,</span> <span class=nx>options</span><span class=o>...</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>   <span class=k>return</span> <span class=nx>lbsu</span><span class=p>,</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// RoundRobin是个依赖库，我们看ServeHTTP的核心逻辑
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>r</span> <span class=o>*</span><span class=nx>RoundRobin</span><span class=p>)</span> <span class=nf>ServeHTTP</span><span class=p>(</span><span class=nx>w</span> <span class=nx>http</span><span class=p>.</span><span class=nx>ResponseWriter</span><span class=p>,</span> <span class=nx>req</span> <span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=nx>newReq</span> <span class=o>:=</span> <span class=o>*</span><span class=nx>req</span>
+</span></span><span class=line><span class=cl>	
+</span></span><span class=line><span class=cl>   <span class=k>if</span> <span class=p>!</span><span class=nx>stuck</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 这里获取一个可以用的server的url，然后替换newReq的url
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=nx>url</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>r</span><span class=p>.</span><span class=nf>NextServer</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 替换掉新请求的url
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=nx>newReq</span><span class=p>.</span><span class=nx>URL</span> <span class=p>=</span> <span class=nx>url</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>   <span class=c1>// 这里替换了req，所以当请求到达ReverseProxy层时候，已经可以正确的反向代理了
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=nx>r</span><span class=p>.</span><span class=nx>next</span><span class=p>.</span><span class=nf>ServeHTTP</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>newReq</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=请求处理>请求处理</h3><p>到目前为止，tcp server已经构建部分已经完成了。</p><p>我们来看看<code>pkg/server/server_entrypoint_tcp.go</code>的<code>Start</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>e</span> <span class=o>*</span><span class=nx>TCPEntryPoint</span><span class=p>)</span> <span class=nf>Start</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=k>for</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>conn</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>e</span><span class=p>.</span><span class=nx>listener</span><span class=p>.</span><span class=nf>Accept</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>		
+</span></span><span class=line><span class=cl>      <span class=c1>// 这里对conn做了包装
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=nx>writeCloser</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nf>writeCloser</span><span class=p>(</span><span class=nx>conn</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	
+</span></span><span class=line><span class=cl>      <span class=nx>safe</span><span class=p>.</span><span class=nf>Go</span><span class=p>(</span><span class=kd>func</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>         <span class=c1>// 这里的switcer是可以被动态替换的，如果替换了，那么后面的极细就正常了。
+</span></span></span><span class=line><span class=cl><span class=c1></span>         <span class=nx>e</span><span class=p>.</span><span class=nx>switcher</span><span class=p>.</span><span class=nf>ServeTCP</span><span class=p>(</span><span class=nf>newTrackedConnection</span><span class=p>(</span><span class=nx>writeCloser</span><span class=p>,</span> <span class=nx>e</span><span class=p>.</span><span class=nx>tracker</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>      <span class=p>})</span>
+</span></span><span class=line><span class=cl>   <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=预留问题>预留问题。</h2><ol><li>域名是如何匹配的？<blockquote><p>可以参考<code>pkg/router/router.go</code>，<code>pkg/router/parser.go</code></p><p>parser.go 实现了个树，会通过这棵树来解析匹配。</p></blockquote></li></ol><h2 id=总结>总结</h2><ol><li>traefik 数据传递都是通过<code>ServeTCP(conn WriteCloser)</code>和<code>ServeHTTP(rw http.ResponseWriter, req *http.Request)</code>来传递的。</li><li>traefik 自定义插件是通过<code>yaegi</code>来动态加载的。</li><li>alice要先了解原理，否则容易被绕进去。<ol><li>traefik很有很多东西没有解读，插件加载，provider，healthcheck，metrics，udp，tls等都是非常核心的模块。</li></ol></li></ol></div><div class=post-copyright><p class=copyright-item><span class=item-title>Author</span>
+<span class=item-content>qxsugar</span></p><p class=copyright-item><span class=item-title>LastMod</span>
+<span class=item-content>2022-02-25</span></p></div><footer class=post-footer><div class=post-tags><a href=/tags/traefik/>traefik</a></div><nav class=post-nav><a class=next href=/post/traefik/traefik%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E4%BE%9D%E8%B5%96%E5%BA%93%E4%BA%86%E8%A7%A3/><span class="next-text nav-default">Traefik源码解读-依赖库了解</span>
+<span class="next-text nav-mobile">Next</span>
+<i class="iconfont icon-right"></i></a></nav></footer></article></div></div></main><footer id=footer class=footer><div><script src=https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js></script>
+<script>mermaid.initialize({startOnLoad:!0,securityLevel:"loose"})</script></div></footer><div class=back-to-top id=back-to-top><i class="iconfont icon-up"></i></div></div><script src=https://cdn.jsdelivr.net/npm/jquery@3.2.1/dist/jquery.min.js integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin=anonymous></script>
+<script src=https://cdn.jsdelivr.net/npm/slideout@1.0.1/dist/slideout.min.js integrity="sha256-t+zJ/g8/KXIJMjSVQdnibt4dlaDxc9zXr/9oNPeWqdg=" crossorigin=anonymous></script>
+<script src=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.js integrity="sha256-XVLffZaxoWfGUEbdzuLi7pwaUJv1cecsQJQqGLe7axY=" crossorigin=anonymous></script>
+<script type=text/javascript src=/js/main.min.4ae89da218555efa0e7093a20b92017d2e1202b66fff9fc2edf4cb8d44b44c6e.js></script>
+<script type=application/javascript>var doNotTrack=!1;doNotTrack||(window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)},ga.l=+new Date,ga("create","UA-126221826-1","auto"),ga("set","anonymizeIp",!0),ga("send","pageview"))</script><script async src=https://www.google-analytics.com/analytics.js></script></body></html>

@@ -1,0 +1,84 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>解读Traefik源码-准备 - 鲜衣怒马少年时，不负韶华行且知</title><meta name=renderer content="webkit"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta http-equiv=cache-control content="no-transform"><meta http-equiv=cache-control content="no-siteapp"><meta name=theme-color content="#f8f5ec"><meta name=msapplication-navbutton-color content="#f8f5ec"><meta name=apple-mobile-web-app-capable content="yes"><meta name=apple-mobile-web-app-status-bar-style content="#f8f5ec"><meta name=author content="qxsugar"><meta name=description content="最近接触了traefik，写了几个traefik middle，感觉traefik很棒。 所以找了个时间看下traefik源码，学习一下。 以后出"><meta name=generator content="Hugo 0.104.3 with theme even"><link rel=canonical href=https://me.ppapi.cn/post/traefik/traefik%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E5%9F%BA%E7%A1%80%E5%87%86%E5%A4%87/><link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png><link rel=manifest href=/manifest.json><link rel=mask-icon href=/safari-pinned-tab.svg color=#5bbad5><link href=/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css rel=stylesheet><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin=anonymous><link rel=stylesheet href=/css/syntax.css><meta property="og:title" content="解读Traefik源码-准备"><meta property="og:description" content="最近接触了traefik，写了几个traefik middle，感觉traefik很棒。 所以找了个时间看下traefik源码，学习一下。 以后出"><meta property="og:type" content="article"><meta property="og:url" content="https://me.ppapi.cn/post/traefik/traefik%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E5%9F%BA%E7%A1%80%E5%87%86%E5%A4%87/"><meta property="article:section" content="post"><meta property="article:published_time" content="2022-02-25T18:45:10+08:00"><meta property="article:modified_time" content="2022-02-25T18:45:10+08:00"><meta itemprop=name content="解读Traefik源码-准备"><meta itemprop=description content="最近接触了traefik，写了几个traefik middle，感觉traefik很棒。 所以找了个时间看下traefik源码，学习一下。 以后出"><meta itemprop=datePublished content="2022-02-25T18:45:10+08:00"><meta itemprop=dateModified content="2022-02-25T18:45:10+08:00"><meta itemprop=wordCount content="480"><meta itemprop=keywords content="traefik,"><meta name=twitter:card content="summary"><meta name=twitter:title content="解读Traefik源码-准备"><meta name=twitter:description content="最近接触了traefik，写了几个traefik middle，感觉traefik很棒。 所以找了个时间看下traefik源码，学习一下。 以后出"><!--[if lte IE 9]><script src=https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js></script><![endif]--><!--[if lt IE 9]><script src=https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js></script>
+<script src=https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js></script><![endif]--></head><body><div id=mobile-navbar class=mobile-navbar><div class=mobile-header-logo><a href=/ class=logo>Magic Conch</a></div><div class=mobile-navbar-icon><span></span>
+<span></span>
+<span></span></div></div><nav id=mobile-menu class="mobile-menu slideout-menu"><ul class=mobile-menu-list><a href=/><li class=mobile-menu-item>Home</li></a><a href=/post/><li class=mobile-menu-item>Archives</li></a><a href=/tags/><li class=mobile-menu-item>Tags</li></a><a href=/categories/><li class=mobile-menu-item>Categories</li></a><a href=/about><li class=mobile-menu-item>About</li></a></ul></nav><div class=container id=mobile-panel><header id=header class=header><div class=logo-wrapper><a href=/ class=logo>Magic Conch</a></div><nav class=site-navbar><ul id=menu class=menu><li class=menu-item><a class=menu-item-link href=/>Home</a></li><li class=menu-item><a class=menu-item-link href=/post/>Archives</a></li><li class=menu-item><a class=menu-item-link href=/tags/>Tags</a></li><li class=menu-item><a class=menu-item-link href=/categories/>Categories</a></li><li class=menu-item><a class=menu-item-link href=/about>About</a></li></ul></nav></header><main id=main class=main><div class=content-wrapper><div id=content class=content><article class=post><header class=post-header><h1 class=post-title>解读Traefik源码-准备</h1><div class=post-meta><span class=post-time>2022-02-25</span><div class=post-category><a href=/categories/traefik/>traefik</a></div></div></header><div class=post-toc id=post-toc><h2 class=post-toc-title>Contents</h2><div class="post-toc-content always-active"><nav id=TableOfContents><ul><li><ul><li><ul><li><a href=#clone代码这里使用v26版本>clone代码，这里使用v2.6版本</a></li><li><a href=#配置traefik>配置traefik</a></li><li><a href=#启动traefik>启动traefik</a></li></ul></li></ul></li></ul></nav></div></div><div class=post-content><p>最近接触了traefik，写了几个traefik middle，感觉traefik很棒。</p><p>所以找了个时间看下traefik源码，学习一下。</p><p>以后出问题了也好解决。</p><h3 id=clone代码这里使用v26版本>clone代码，这里使用v2.6版本</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>git clone --depth <span class=m>1</span> --branch v2.6 git@github.com:traefik/traefik.git
+</span></span></code></pre></td></tr></table></div></div><h3 id=配置traefik>配置traefik</h3><p>在<code>cmd/traefik</code>目录下增加两个文件<code>traefik.yaml</code>和<code>http.yaml</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=c># traefik.yaml</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># traefik启动配置文件</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>global</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>checkNewVersion</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>sendAnonymousUsage</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>entryPoints</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>web</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>address</span><span class=p>:</span><span class=w> </span><span class=p>:</span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>websecure</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>address</span><span class=p>:</span><span class=w> </span><span class=p>:</span><span class=m>443</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>log</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>level</span><span class=p>:</span><span class=w> </span><span class=l>DEBUG</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>providers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>file</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>filename</span><span class=p>:</span><span class=w> </span><span class=l>./http.yaml</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=c># http.yaml</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># traefik动态配置文件，这个修改后traefik会热加载</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>http</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>routers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>api</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>rule</span><span class=p>:</span><span class=w> </span><span class=l>host(`prod.ppapi.cn`)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>service</span><span class=p>:</span><span class=w> </span><span class=l>svc1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>entryPoints</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=l>web</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>services</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>svc1</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>loadBalancer</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>servers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=nt>url</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;http://localhost:8999&#34;</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><strong>这里我是本地调试，所以配置了个<code>prod.ppapi.cn</code>指向<code>127.0.0.1</code></strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># 启动一个service作为endpoint</span>
+</span></span><span class=line><span class=cl>docker run -d -p 8999:80 -it containous/whoami
+</span></span></code></pre></td></tr></table></div></div><h3 id=启动traefik>启动traefik</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nb>cd</span> cmd/traefik
+</span></span><span class=line><span class=cl>go run traefik.go 
+</span></span></code></pre></td></tr></table></div></div><p>等待依赖下载完成启动traefik，输入<code>curl prod.ppapi.cn(prod.ppapi.cn的host是127.0.0.1)</code> 可以看到<code>whoami</code>输出信息。</p><p>到这一步，traefik代码环境就完成了，接下来就可以调试分析traefik代码了。</p></div><div class=post-copyright><p class=copyright-item><span class=item-title>Author</span>
+<span class=item-content>qxsugar</span></p><p class=copyright-item><span class=item-title>LastMod</span>
+<span class=item-content>2022-02-25</span></p></div><footer class=post-footer><div class=post-tags><a href=/tags/traefik/>traefik</a></div><nav class=post-nav><a class=prev href=/post/traefik/traefik%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E4%BE%9D%E8%B5%96%E5%BA%93%E4%BA%86%E8%A7%A3/><i class="iconfont icon-left"></i>
+<span class="prev-text nav-default">Traefik源码解读-依赖库了解</span>
+<span class="prev-text nav-mobile">Prev</span></a>
+<a class=next href=/post/traefik/traefik-gray-system/><span class="next-text nav-default">基于Traefik实现一个灰度发布系统</span>
+<span class="next-text nav-mobile">Next</span>
+<i class="iconfont icon-right"></i></a></nav></footer></article></div></div></main><footer id=footer class=footer><div><script src=https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js></script>
+<script>mermaid.initialize({startOnLoad:!0,securityLevel:"loose"})</script></div></footer><div class=back-to-top id=back-to-top><i class="iconfont icon-up"></i></div></div><script src=https://cdn.jsdelivr.net/npm/jquery@3.2.1/dist/jquery.min.js integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin=anonymous></script>
+<script src=https://cdn.jsdelivr.net/npm/slideout@1.0.1/dist/slideout.min.js integrity="sha256-t+zJ/g8/KXIJMjSVQdnibt4dlaDxc9zXr/9oNPeWqdg=" crossorigin=anonymous></script>
+<script src=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.js integrity="sha256-XVLffZaxoWfGUEbdzuLi7pwaUJv1cecsQJQqGLe7axY=" crossorigin=anonymous></script>
+<script type=text/javascript src=/js/main.min.4ae89da218555efa0e7093a20b92017d2e1202b66fff9fc2edf4cb8d44b44c6e.js></script>
+<script type=application/javascript>var doNotTrack=!1;doNotTrack||(window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)},ga.l=+new Date,ga("create","UA-126221826-1","auto"),ga("set","anonymizeIp",!0),ga("send","pageview"))</script><script async src=https://www.google-analytics.com/analytics.js></script></body></html>
