@@ -2,22 +2,22 @@
 title: "Traefik配置限流"
 date: "2021-12-31T13:56:21+08:00"
 draft: "false"
-tags: ["traefik"]
-categories: ["traefik"]
+tags: ["Traefik"]
+categories: ["Traefik"]
 ---
 
-traefik是一个纯go写的Gateway，不仅内置了很多常用的插件，还支持自定义插件。
+Traefik是一个使用纯Go编写的网关，它不仅内置了许多常用的插件，还支持自定义插件。
 
-今天就来配置一下traefik的限流。
+今天我们来配置Traefik的限流功能。
 
 ### 环境准备
 
-    这里我是用k3s来测试的，k3s默认的ingress就是traefik。
-    准备一个域名指向安装了k3s的服务器。
+我将使用K3s来演示，并且K3s默认使用的Ingress控制器就是Traefik。
+准备一个域名指向安装了K3s的服务器。
 
 ### 配置服务
 
-1. 部署一个nginx的deployment
+1. 部署一个NGINX的Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -41,7 +41,7 @@ spec:
             - containerPort: 80
 ```
 
-2. 配置service指向nginx的deploy
+2. 配置一个Service将流量指向NGINX的Deployment
 
 ```yaml
 apiVersion: v1
@@ -56,15 +56,15 @@ spec:
     app: nginx
 ```
 
-3. 配置一个rateLimit的middleware
+3. 配置一个Rate Limit的中间件
 
 ```yaml
-# ref https://traefik.tech/middlewares/ratelimit/
-# 参数解析
-# average 最大速率，默认情况下是每s请求数，默认值为0，表示没有限制，该速率实际上是用average除以period来定义的。因此，对于低于1 req/s的速率，需要定义一个大于一秒的period
-# burst 是在任意短的同一时间段内允许通过的最大请求数，默认为1
-# period period与average一起定义了实际的最大速率，例如：r = average / period，默认为1
-# 下面这个配置定义，每3s允许一个请求通过
+# 参考文档 https://doc.traefik.io/traefik-middleware/rate-limiter/
+# 参数解析：
+# average: 最大速率，默认情况下是每秒请求数，默认值为0，表示没有限制。该速率实际上是用average除以period来定义的。因此，对于每秒请求低于1的速率，需要定义一个数值大于1秒的period。
+# burst: 是在任意短的同一时间段内允许通过的最大请求数，默认为1。
+# period: 与average一起定义了实际的最大速率。例如：r = average / period，默认为1。
+# 以下配置定义每3秒允许通过一个请求
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
@@ -76,7 +76,7 @@ spec:
     period: 3
 ```
 
-4. 配置一个ingress解析
+4. 配置一个Ingress规则
 
 ```yaml
 apiVersion: traefik.containo.us/v1alpha1
@@ -92,12 +92,12 @@ spec:
       services:
         - name: nginx
           port: 80
-      # 使用限流插件
+      # 使用限流中间件
       middlewares:
         - name: z-rate
 ```
 
-### 执行ab test 来并发请求
+### 使用ab工具进行并发请求测试
 
 ```text
 ab -n 100 -c 10 "http://rate.ppapi.cn/"
@@ -146,4 +146,4 @@ Percentage of the requests served within a certain time (ms)
  100%    318 (longest request)
 ```
 
-**可以看到100次请求用了0.534s，100次请求只有一次成功了，failed了99次，说明限流成功了**
+**我们可以看到100次请求用了0.534秒，其中有99次失败了，只有一次请求成功，说明限流成功了。**

@@ -1,29 +1,27 @@
 ---
-title: "分析MySql命中率"
+title: "分析MySQL命中率"
 date: "2019-08-27 14:45:26"
 draft: "false"
-categories: ["mysql"]
-tags: ["mysql"]
+categories: ["MySQL"]
+tags: ["MySQL"]
 ---
 
-当一个mysql的查询量很高时候，有很多种优化方案。
+在MySQL查询量很高时，有很多种优化方案可供选择，如分库分表、主从分离等。
 
-分库分表，主从分离等都是不错的选择。
+在主从分离的情况下，我们如何判断一个读取库的性能是否得到了最大效率的利用呢？
 
-主从分离情况下，我们怎么权衡一个DB的性能有没有被最大效率的利用呢？
+通常，我们会选择查询缓存命中率作为评估读库性能的指标。
 
-通常我们会选择查询缓存命中率来作为读库的一个指标。
+目前，InnoDB是主要的MySQL存储引擎，以下内容也是以InnoDB为角度进行讨论。
 
-由于现在DB引擎都是Innodb居多。 所以下面都是以Innodb的角度来说。
+### 什么是MySQL缓存命中率?
 
-### MySql 缓存命中率是什么?
+MySQL从磁盘读取数据的成本很高，因此希望MySQL尽可能地从缓存中读取数据。
 
-    MySql查询读取磁盘的代价是很高的。
-    所以我们希望MySql尽可能的读取缓存。
-    缓存命中就是查询MySql的时候，直接从内存中得到结果返回。
-    计算公式：缓存命中率 = 读内存次数 / 查询总数。一般来说。我们希望读库的缓存命中率达到99.95%以上。
+缓存命中率指的是查询MySQL时，直接从内存中获取结果的次数与总查询次数的比率。
+计算公式为：缓存命中率 = 读取内存次数 / 查询总次数。一般而言，我们希望读库的缓存命中率达到99.95%以上。
 
-### MySql 缓存参数配置
+### MySQL缓存参数配置
 
 #### 查看当前缓存配置大小
 
@@ -42,16 +40,18 @@ show variables like 'innodb_buffer_pool_size';
 SET GLOBAL innodb_buffer_pool_size = 6442450944;
 ```
 
-#### 修改缓存大小方案
+#### 修改缓存大小的方案
 
-1. 修改mysql配置文件并重启mysql
-2. 在mysql控制台修改配置，同时修改配置，不用重启
+1. 修改MySQL配置文件并重启MySQL服务。
+2. 在MySQL控制台中修改配置，并同时修改MySQL配置文件，无需重启。
 
-### 缓存命中率计算
+### 计算缓存命中率
 
-    根据公式 缓存命中率 = 读内存次数 / 查询总数 我们很容易算出命中率
-    读内存次数 = "Innodb_buffer_pool_reads"
-    查询总次数 = "Innodb_buffer_pool_read_requests"
+根据公式：缓存命中率 = 读取内存次数 / 查询总次数，我们可以计算出缓存命中率。
+
+其中：
+- 读取内存次数为"Innodb_buffer_pool_reads"的值。
+- 查询总次数为"Innodb_buffer_pool_read_requests"的值。
 
 ```mysql
 show status like '%pool_read%';
@@ -66,70 +66,71 @@ show status like '%pool_read%';
 -- +---------------------------------------+-------------+
 ```
 
->
+然而，这些值表示的是总的数量，并不是一段时间内的差值，因此参考价值不大。
+因此，我们需要取一段时间内的差值来计算缓存命中率。
 
-    但是这两个值是总的数量,并不是一段时间内的，参考价值不大，所以我们要取一段时间内的差值来算
-    命中率 = (第二次读内存次数 - 第一次读内存次数) / (第二次查询总数 - 第一次查询总数)
+### Bash脚本
 
-### bash脚本
-
-算了好多次，都是重复性的，有点繁琐，所以写了个脚本来算
+为了避免重复性的计算过程，可以使用下面的Bash脚本来计算缓存命中率：
 
 ```bash
-echo "MYSQL缓存命中查询脚本"
-read -p "请输入 mysql 用户/root              " user
-read -p "请输入 mysql 密码/''                " pass
-read -p "请输入 mysql 域名/localhost         " host
-read -p "请输入 mysql 端口/3306              " port
-read -p "请输入       间隔/60s               " slp
+#!/bin/bash
+
+echo "MySQL缓存命中查询脚本"
+read -p "请输入MySQL用户/root： " user
+read -p "请输入MySQL密码/''： " pass
+read -p "请输入MySQL域名/localhost： " host
+read -p "请输入MySQL端口/3306： " port
+read -p "请输入查询间隔/60s： " interval
 
 user=${user:-"root"}
 pass=${pass:-""}
 host=${host:-"localhost"}
 port=${port:-"3306"}
-slp=${slp:-"60"}
+interval=${interval:-"60"}
 
 echo "开始提取打点信息"
-info=`mysql -u${user} -p${pass} -h${host} -P${port} -e "show status" 2>/dev/null | egrep 'Innodb_buffer_pool_reads|Innodb_buffer_pool_read_requests' | awk '{print $2}'`
+info=$(mysql -u${user} -p${pass} -h${host} -P${port} -e "show status" 2>/dev/null | egrep 'Innodb_buffer_pool_reads|Innodb_buffer_pool_read_requests' | awk '{print $2}')
 if [[ ${info} == "" ]]; then
-    echo "提取mysql配置信息失败"
+    echo "提取MySQL配置信息失败"
     exit 1
 fi
 
 read -a info1 <<< ${info}
-echo "第一次打点信息 请求数: ${info1[0]}, 读磁盘数: ${info1[1]}"
-echo "休眠${slp}s"
-sleep ${slp}
+echo "第一次打点信息：请求数 - ${info1[0]}, 读磁盘数 - ${info1[1]}"
+echo "休眠${interval}s"
+sleep ${interval}
 
-info=`mysql -u${user} -p${pass} -h${host} -P${port} -e "show status" 2>/dev/null | egrep 'Innodb_buffer_pool_reads|Innodb_buffer_pool_read_requests' | awk '{print $2}'`
+info=$(mysql -u${user} -p${pass} -h${host} -P${port} -e "show status" 2>/dev/null | egrep 'Innodb_buffer_pool_reads|Innodb_buffer_pool_read_requests' | awk '{print $2}')
 read -a info2 <<< ${info}
 if [[ ${info} == "" ]]; then
-    echo "提取mysql配置信息失败"
+    echo "提取MySQL配置信息失败"
     exit 1
 fi
-echo "第二次打点信息 请求数: ${info2[0]}, 读磁盘数: ${info2[1]}"
+echo "第二次打点信息：请求数 - ${info2[0]}, 读磁盘数 - ${info2[1]}"
 
-requests=`expr ${info2[0]} - ${info1[0]}`
-reads=`expr ${info2[1]} - ${info1[1]}`
-echo | awk "{ print \"命中率:\", ($requests-$reads) / $requests * 100.0 }"
+requests=$((${info2[0]} - ${info1[0]}))
+reads=$((${info2[1]} - ${info1[1]}))
+echo | awk "{ print \"命中率：\", ($requests-$reads) / $requests * 100.0 }"
 ```
 
 **使用方法**
 
 ```bash
-MYSQL缓存命中查询脚本
-请输入 mysql 用户/root              xxx
-请输入 mysql 密码/''                xxx
-请输入 mysql 域名/localhost
-请输入 mysql 端口/3306
-请输入       间隔/60s               10
+MySQL缓存命中查询脚本
+请输入MySQL用户/root： xxx
+请输入MySQL密码/''： xxx
+请输入MySQL域名/localhost： 
+请输入MySQL端口/3306： 
+请输入查询间隔/60s： 10
 开始提取打点信息
-第一次打点信息 请求数: 42766927561, 读磁盘数: 566510284
+第一次打点信息：
+请求数 - 42766927561, 读磁盘数 - 566510284
 休眠10s
-第二次打点信息 请求数: 42767040750, 读磁盘数: 566511295
-命中率: 99.1068
+第二次打点信息：请求数 - 42767040750, 读磁盘数 - 566511295
+命中率： 99.1068
 ```
 
-~~只需要很简单的一个计算，就能知道我们的mysql内存使用率有没有达到最高效了。~~
+~~只需要通过简单的计算，就可以知道MySQL内存使用的效率是否达到最优。~~
 
-目前大部分生产的MySql都已经上云了，这些脚本意义已经不是很大了。
+当前大部分生产环境的MySQL都已经部署在云上，因此这些脚本的意义已经不是很大。

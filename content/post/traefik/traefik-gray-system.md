@@ -2,47 +2,47 @@
 title: "基于Traefik实现一个灰度发布系统"
 date: "2022-01-06T13:56:48+08:00"
 draft: "false"
-tags: ["traefik"]
-categories: ["traefik"]
+tags: ["Traefik"]
+categories: ["Traefik"]
 ---
 
-最近切换到了k8s，用了traefik作为Gateway。
+最近我们切换到了Kubernetes，并选择了Traefik作为我们的网关。
 
-traefik2.0以后支持了自定义middleware功能，可以对请求做一些处理。
+从Traefik 2.0版本开始，它支持自定义中间件功能，可以对请求进行处理。
 
-基于这个功能我们可以实现一个灰度系统。
+我们可以基于这个功能来实现一个灰度发布系统。
 
 [developing traefik plugins](https://doc.traefik.io/traefik-pilot/plugins/plugin-dev/)
 
 ### 需求功能
 
-1. 能基于用户identify做灰度。
-2. 能基于请求版本做灰度。
-3. 能基于百分比做灰度。
-4. 能基于url关键字做灰度。
-5. 透明系统，不需要改动业务代码。
+1. 根据用户标识进行灰度发布。
+2. 根据请求版本进行灰度发布。
+3. 根据百分比进行灰度发布。
+4. 根据URL关键字进行灰度发布。
+5. 透明化系统，不需要修改业务代码。
 
 ### 设计方案
 
-由于traefik的middleware是串行，所以我们分成多个步骤来会读。
+由于Traefik的中间件是串行的，因此我们将其分成多个步骤进行处理。
 
-1. 一个middle负责对流量进行识别染色处理。
-2. 一个服务负责对不同颜色的流量转发到不同服务。
+1. 使用一个中间件对流量进行识别和标记。
+2. 使用一个中间件将不同标记的流量转发到不同的服务。
 
-### 流程
+### 流程图
 
-**默认系统流出**
+**默认系统流程**
 {{< mermaid >}}
 flowchart LR;
 user(user)
-traefik(traefik gateway)
+traefik(traefik网关)
 svc(prod-svc)
 pod1(pod1)
 pod2(pod2)
 podX(pod...)
 db[(db)]
 
-    user--request-->traefik-->svc
+    user--请求-->traefik-->svc
     svc-->pod1-->db
     svc-->pod2-->db
     svc-->podX-->db
@@ -53,26 +53,26 @@ db[(db)]
 {{< mermaid >}}
 flowchart LR
 user(user)
-traefik(traefik gateway)
+traefik(traefik网关)
 prodSvc(prod-svc)
 alphaSvc(alpha-svc)
 betaSvc(beta-svc)
-m1{middles...}    
-m2{请求染色}
-m3{请求转发}
-user--request-->traefik
-subgraph traefik middlewares
+m1{中间件...}    
+m2{请求标记中间件}
+m3{请求转发中间件}
+user--请求-->traefik
+subgraph Traefik中间件
 m1-- next -->m2--next-->m3
 end
-subgraph prod env
+subgraph 正式环境
 pod1(pod1)
 pod2(pod...)
 end
-subgraph alpha env
+subgraph Alpha环境
 pod3(pod3)
 pod4(pod...)
 end
-subgraph beta env
+subgraph Beta环境
 pod5(pod5)
 pod6(pod...)
 end
@@ -88,14 +88,14 @@ betaSvc-->pod5
 betaSvc-->pod6
 {{< /mermaid >}}
 
-## 具体实现放在了github
+## 具体实现代码在GitHub上
 
-1. [流量染色插件](https://github.com/qxsugar/request-mark)
-2. [流量转发插件](https://github.com/qxsugar/request-dispatch)
+1. [请求标记插件](https://github.com/qxsugar/request-mark)
+2. [请求转发插件](https://github.com/qxsugar/request-dispatch)
 
 ### 测试使用
 
-域名准备，域名prod.ppapi.cn，beta.ppapi.cn，alpha.ppapi.cn分别代表正式环境，alpha环境，beta环境。
+首先准备好域名，prod.ppapi.cn、beta.ppapi.cn、alpha.ppapi.cn分别代表正式环境、beta环境和alpha环境。
 
 ```yaml
 # 部署whoami服务
@@ -170,7 +170,7 @@ spec:
                   number: 80
 ```
 
-配置traefik启动参数
+对Traefik启动参数进行配置
 
 ```yaml
 experimental:
@@ -183,7 +183,7 @@ experimental:
       version: v1.0.1
 ```
 
-配置解析规则
+配置规则
 
 ```yaml
 http:
@@ -194,23 +194,23 @@ http:
       entryPoints:
         - web
       middlewares:
-        - request-mark        # 对流量染色
-        - request-dispatch    # 对染色流量进行转发
+        - request-mark        # 对流量进行标记
+        - request-dispatch    # 对标记进行转发
 
   services:
     svc:
       loadBalancer:
         servers:
-          # 默认流量走prod
+          # 默认流量转发到prod环境
           - url: "http://prod.ppapi.cn"
 
   middlewares:
-    # 流量转发
+    # 请求转发
     request-dispatch:
       plugin:
         request-dispatch: # 转发插件
           logLevel: DEBUG
-          markHeader: TAG               # 染色标记header
+          markHeader: TAG               # 标记的header
           markHosts:
             alpha: # 如果TAG: alpha 转发到这里
               - http://alpha.ppapi.cn
@@ -218,10 +218,10 @@ http:
             beta:
               - http://beta.ppapi.cn
 
-    #  流量染色
+    #  请求标记
     request-mark:
       plugin:
-        request-mark: # 染色插件
+        request-mark: # 标记插件
           serviceName: ppapi
           logLevel: DEBUG
           redisAddr: ""
@@ -264,7 +264,7 @@ http:
               path: alpha
 ```
 
-测试
+测试请求
 
 ```text
 ➜  ~ http test.ppapi.cn identify:A001
@@ -279,12 +279,12 @@ IP: 127.0.0.1
 IP: 10.42.0.4
 RemoteAddr: 10.42.0.213:47482
 GET / HTTP/1.1
-Host: beta.ppapi.cn                                 # 被转发到了beta
+Host: beta.ppapi.cn                                 # 被转发到了beta环境
 User-Agent: HTTPie/2.6.0
 Accept: */*
 Accept-Encoding: gzip, deflate
 Identify: A001
-Tag: beta                                           # beta染色
+Tag: beta                                           # 标记为beta
 X-Forwarded-For: 127.0.0.1, 10.42.0.1
 X-Forwarded-Host: prod.ppapi.cn
 X-Forwarded-Port: 80
@@ -306,12 +306,12 @@ IP: 127.0.0.1
 IP: 10.42.0.3
 RemoteAddr: 10.42.0.213:49676
 GET / HTTP/1.1
-Host: alpha.ppapi.cn                                # 被转发到了alpha
+Host: alpha.ppapi.cn                                # 被转发到了alpha环境
 User-Agent: HTTPie/2.6.0
 Accept: */*
 Accept-Encoding: gzip, deflate
 Identify: A003
-Tag: alpha                                          # alpha 染色
+Tag: alpha                                          # 标记为alpha
 X-Forwarded-For: 127.0.0.1, 10.42.0.1
 X-Forwarded-Host: test.ppapi.cn
 X-Forwarded-Port: 80
