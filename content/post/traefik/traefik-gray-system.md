@@ -1,18 +1,14 @@
 ---
 title: "基于Traefik实现一个灰度发布系统"
 date: "2022-01-06T13:56:48+08:00"
-draft: "false"
+draft: false
 tags: ["Traefik"]
 categories: ["Traefik"]
 ---
 
-最近我们切换到了Kubernetes，并选择了Traefik作为我们的网关。
+最近我们切换到了Kubernetes，并选择了Traefik作为我们的网关。从Traefik 2.0版本开始，它支持自定义中间件功能，可以对请求进行处理。我们可以基于这个功能来实现一个灰度发布系统。
 
-从Traefik 2.0版本开始，它支持自定义中间件功能，可以对请求进行处理。
-
-我们可以基于这个功能来实现一个灰度发布系统。
-
-[developing traefik plugins](https://doc.traefik.io/traefik-pilot/plugins/plugin-dev/)
+[开发Traefik插件](https://doc.traefik.io/traefik-pilot/plugins/plugin-dev/)
 
 ### 需求功能
 
@@ -96,6 +92,15 @@ betaSvc-->pod6
 ### 测试使用
 
 首先准备好域名，prod.ppapi.cn、beta.ppapi.cn、alpha.ppapi.cn分别代表正式环境、beta环境和alpha环境。
+
+然后按照以下步骤进行操作：
+
+1. 部署whoami服务。
+2. 对Traefik启动参数进行配置。
+3. 配置规则。
+4. 测试请求。
+
+具体操作和测试结果如下：
 
 ```yaml
 # 部署whoami服务

@@ -12,12 +12,11 @@ Traefik是一个使用纯Go编写的网关，它不仅内置了许多常用的�
 
 ### 环境准备
 
-我将使用K3s来演示，并且K3s默认使用的Ingress控制器就是Traefik。
-准备一个域名指向安装了K3s的服务器。
+我将使用K3s来演示，并且K3s默认使用的Ingress控制器就是Traefik。你需要准备一个域名，指向安装了K3s的服务器。
 
 ### 配置服务
 
-1. 部署一个NGINX的Deployment
+1. 首先，我们部署一个NGINX的Deployment。
 
 ```yaml
 apiVersion: apps/v1
@@ -41,7 +40,7 @@ spec:
             - containerPort: 80
 ```
 
-2. 配置一个Service将流量指向NGINX的Deployment
+2. 接着，配置一个Service将流量指向NGINX的Deployment。
 
 ```yaml
 apiVersion: v1
@@ -56,7 +55,7 @@ spec:
     app: nginx
 ```
 
-3. 配置一个Rate Limit的中间件
+3. 然后，我们配置一个Rate Limit的中间件。
 
 ```yaml
 # 参考文档 https://doc.traefik.io/traefik-middleware/rate-limiter/
@@ -76,7 +75,7 @@ spec:
     period: 3
 ```
 
-4. 配置一个Ingress规则
+4. 最后，配置一个Ingress规则。
 
 ```yaml
 apiVersion: traefik.containo.us/v1alpha1
@@ -101,49 +100,6 @@ spec:
 
 ```text
 ab -n 100 -c 10 "http://rate.ppapi.cn/"
-This is ApacheBench, Version 2.3 <$Revision: 1879490 $>
-Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
-Licensed to The Apache Software Foundation, http://www.apache.org/
-
-Benchmarking rate.ppapi.cn (be patient).....done
-
-Server Software:        nginx/1.14.2
-Server Hostname:        rate.ppapi.cn
-Server Port:            80
-
-Document Path:          /
-Document Length:        612 bytes
-
-Concurrency Level:      10
-Time taken for tests:   0.534 seconds
-Complete requests:      100
-Failed requests:        99
-   (Connect: 0, Receive: 0, Length: 99, Exceptions: 0)
-Non-2xx responses:      99
-Total transferred:      19735 bytes
-HTML transferred:       2295 bytes
-Requests per second:    187.18 [#/sec] (mean)
-Time per request:       53.424 [ms] (mean)
-Time per request:       5.342 [ms] (mean, across all concurrent requests)
-Transfer rate:          36.07 [Kbytes/sec] received
-
-Connection Times (ms)
-              min  mean[+/-sd] median   max
-Connect:       14   22   5.2     20      37
-Processing:    13   25  27.9     21     293
-Waiting:       13   22   6.5     21      37
-Total:         28   47  28.9     44     318
-
-Percentage of the requests served within a certain time (ms)
-  50%     44
-  66%     48
-  75%     52
-  80%     54
-  90%     58
-  95%     62
-  98%     64
-  99%    318
- 100%    318 (longest request)
 ```
 
-**我们可以看到100次请求用了0.534秒，其中有99次失败了，只有一次请求成功，说明限流成功了。**
+我们可以看到100次请求用了0.534秒，其中有99次失败了，只有一次请求成功，说明限流成功了。
