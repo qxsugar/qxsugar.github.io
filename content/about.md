@@ -1,4 +1,3 @@
-```markdown
 ---
 title: "About Me"
 date: "2020-10-12T11:13:25+08:00"
@@ -14,4 +13,3 @@ draft: false
 ### 请他喝茶！
 
 ![image](https://static-1252018492.cos.ap-nanjing.myqcloud.com/uPic/F6JEK9.jpg)
-```
