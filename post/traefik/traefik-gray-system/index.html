@@ -1,17 +1,17 @@
-<!doctype html><html lang=en><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>基于Traefik实现一个灰度发布系统 - 鲜衣怒马少年时，不负韶华行且知</title><meta name=renderer content="webkit"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta http-equiv=cache-control content="no-transform"><meta http-equiv=cache-control content="no-siteapp"><meta name=theme-color content="#f8f5ec"><meta name=msapplication-navbutton-color content="#f8f5ec"><meta name=apple-mobile-web-app-capable content="yes"><meta name=apple-mobile-web-app-status-bar-style content="#f8f5ec"><meta name=author content="qxsugar"><meta name=description content="最近切换到了k8s，用了traefik作为Gateway。 traefik2.0以后支持了自定义middleware功能，可以对请求做一些处理"><meta name=generator content="Hugo 0.104.3 with theme even"><link rel=canonical href=https://me.ppapi.cn/post/traefik/traefik-gray-system/><link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png><link rel=manifest href=/manifest.json><link rel=mask-icon href=/safari-pinned-tab.svg color=#5bbad5><link href=/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css rel=stylesheet><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin=anonymous><link rel=stylesheet href=/css/syntax.css><meta property="og:title" content="基于Traefik实现一个灰度发布系统"><meta property="og:description" content="最近切换到了k8s，用了traefik作为Gateway。 traefik2.0以后支持了自定义middleware功能，可以对请求做一些处理"><meta property="og:type" content="article"><meta property="og:url" content="https://me.ppapi.cn/post/traefik/traefik-gray-system/"><meta property="article:section" content="post"><meta property="article:published_time" content="2022-01-06T13:56:48+08:00"><meta property="article:modified_time" content="2022-01-06T13:56:48+08:00"><meta itemprop=name content="基于Traefik实现一个灰度发布系统"><meta itemprop=description content="最近切换到了k8s，用了traefik作为Gateway。 traefik2.0以后支持了自定义middleware功能，可以对请求做一些处理"><meta itemprop=datePublished content="2022-01-06T13:56:48+08:00"><meta itemprop=dateModified content="2022-01-06T13:56:48+08:00"><meta itemprop=wordCount content="1268"><meta itemprop=keywords content="traefik,"><meta name=twitter:card content="summary"><meta name=twitter:title content="基于Traefik实现一个灰度发布系统"><meta name=twitter:description content="最近切换到了k8s，用了traefik作为Gateway。 traefik2.0以后支持了自定义middleware功能，可以对请求做一些处理"><!--[if lte IE 9]><script src=https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js></script><![endif]--><!--[if lt IE 9]><script src=https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js></script>
+<!doctype html><html lang=en><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>基于Traefik实现一个灰度发布系统 - 鲜衣怒马少年时，不负韶华行且知</title><meta name=renderer content="webkit"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta http-equiv=cache-control content="no-transform"><meta http-equiv=cache-control content="no-siteapp"><meta name=theme-color content="#f8f5ec"><meta name=msapplication-navbutton-color content="#f8f5ec"><meta name=apple-mobile-web-app-capable content="yes"><meta name=apple-mobile-web-app-status-bar-style content="#f8f5ec"><meta name=author content="qxsugar"><meta name=description content="最近我们切换到了Kubernetes，并选择了Traefik作为我们的网关。从Traefik 2.0版本开始，它支持自定义中间件功能，可以对请"><meta name=generator content="Hugo 0.101.0 with theme even"><link rel=canonical href=https://me.ppapi.cn/post/traefik/traefik-gray-system/><link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png><link rel=manifest href=/manifest.json><link rel=mask-icon href=/safari-pinned-tab.svg color=#5bbad5><link href=/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css rel=stylesheet><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin=anonymous><link rel=stylesheet href=/css/syntax.css><meta property="og:title" content="基于Traefik实现一个灰度发布系统"><meta property="og:description" content="最近我们切换到了Kubernetes，并选择了Traefik作为我们的网关。从Traefik 2.0版本开始，它支持自定义中间件功能，可以对请"><meta property="og:type" content="article"><meta property="og:url" content="https://me.ppapi.cn/post/traefik/traefik-gray-system/"><meta property="article:section" content="post"><meta property="article:published_time" content="2022-01-06T13:56:48+08:00"><meta property="article:modified_time" content="2022-01-06T13:56:48+08:00"><meta itemprop=name content="基于Traefik实现一个灰度发布系统"><meta itemprop=description content="最近我们切换到了Kubernetes，并选择了Traefik作为我们的网关。从Traefik 2.0版本开始，它支持自定义中间件功能，可以对请"><meta itemprop=datePublished content="2022-01-06T13:56:48+08:00"><meta itemprop=dateModified content="2022-01-06T13:56:48+08:00"><meta itemprop=wordCount content="1470"><meta itemprop=keywords content="Traefik,"><meta name=twitter:card content="summary"><meta name=twitter:title content="基于Traefik实现一个灰度发布系统"><meta name=twitter:description content="最近我们切换到了Kubernetes，并选择了Traefik作为我们的网关。从Traefik 2.0版本开始，它支持自定义中间件功能，可以对请"><!--[if lte IE 9]><script src=https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js></script><![endif]--><!--[if lt IE 9]><script src=https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js></script>
 <script src=https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js></script><![endif]--></head><body><div id=mobile-navbar class=mobile-navbar><div class=mobile-header-logo><a href=/ class=logo>Magic Conch</a></div><div class=mobile-navbar-icon><span></span>
 <span></span>
-<span></span></div></div><nav id=mobile-menu class="mobile-menu slideout-menu"><ul class=mobile-menu-list><a href=/><li class=mobile-menu-item>Home</li></a><a href=/post/><li class=mobile-menu-item>Archives</li></a><a href=/tags/><li class=mobile-menu-item>Tags</li></a><a href=/categories/><li class=mobile-menu-item>Categories</li></a><a href=/about><li class=mobile-menu-item>About</li></a></ul></nav><div class=container id=mobile-panel><header id=header class=header><div class=logo-wrapper><a href=/ class=logo>Magic Conch</a></div><nav class=site-navbar><ul id=menu class=menu><li class=menu-item><a class=menu-item-link href=/>Home</a></li><li class=menu-item><a class=menu-item-link href=/post/>Archives</a></li><li class=menu-item><a class=menu-item-link href=/tags/>Tags</a></li><li class=menu-item><a class=menu-item-link href=/categories/>Categories</a></li><li class=menu-item><a class=menu-item-link href=/about>About</a></li></ul></nav></header><main id=main class=main><div class=content-wrapper><div id=content class=content><article class=post><header class=post-header><h1 class=post-title>基于Traefik实现一个灰度发布系统</h1><div class=post-meta><span class=post-time>2022-01-06</span><div class=post-category><a href=/categories/traefik/>traefik</a></div></div></header><div class=post-toc id=post-toc><h2 class=post-toc-title>Contents</h2><div class="post-toc-content always-active"><nav id=TableOfContents><ul><li><ul><li><ul><li><a href=#需求功能>需求功能</a></li><li><a href=#设计方案>设计方案</a></li><li><a href=#流程>流程</a></li></ul></li><li><a href=#具体实现放在了github>具体实现放在了github</a><ul><li><a href=#测试使用>测试使用</a></li></ul></li></ul></li></ul></nav></div></div><div class=post-content><p>最近切换到了k8s，用了traefik作为Gateway。</p><p>traefik2.0以后支持了自定义middleware功能，可以对请求做一些处理。</p><p>基于这个功能我们可以实现一个灰度系统。</p><p><a href=https://doc.traefik.io/traefik-pilot/plugins/plugin-dev/>developing traefik plugins</a></p><h3 id=需求功能>需求功能</h3><ol><li>能基于用户identify做灰度。</li><li>能基于请求版本做灰度。</li><li>能基于百分比做灰度。</li><li>能基于url关键字做灰度。</li><li>透明系统，不需要改动业务代码。</li></ol><h3 id=设计方案>设计方案</h3><p>由于traefik的middleware是串行，所以我们分成多个步骤来会读。</p><ol><li>一个middle负责对流量进行识别染色处理。</li><li>一个服务负责对不同颜色的流量转发到不同服务。</li></ol><h3 id=流程>流程</h3><p><strong>默认系统流出</strong><pre class=mermaid align=center>
+<span></span></div></div><nav id=mobile-menu class="mobile-menu slideout-menu"><ul class=mobile-menu-list><a href=/><li class=mobile-menu-item>Home</li></a><a href=/post/><li class=mobile-menu-item>Archives</li></a><a href=/tags/><li class=mobile-menu-item>Tags</li></a><a href=/categories/><li class=mobile-menu-item>Categories</li></a><a href=/about><li class=mobile-menu-item>About</li></a></ul></nav><div class=container id=mobile-panel><header id=header class=header><script type=text/javascript>(function(e,t,n,s,o,i,a){e[n]=e[n]||function(){(e[n].q=e[n].q||[]).push(arguments)},i=t.createElement(s),i.async=1,i.src="https://www.clarity.ms/tag/"+o,a=t.getElementsByTagName(s)[0],a.parentNode.insertBefore(i,a)})(window,document,"clarity","script","jtv84egvvk")</script></header><main id=main class=main><div class=content-wrapper><div id=content class=content><article class=post><header class=post-header><h1 class=post-title>基于Traefik实现一个灰度发布系统</h1><div class=post-meta><span class=post-time>2022-01-06</span><div class=post-category><a href=/categories/traefik/>Traefik</a></div></div></header><div class=post-toc id=post-toc><h2 class=post-toc-title>Contents</h2><div class="post-toc-content always-active"><nav id=TableOfContents><ul><li><ul><li><ul><li><a href=#需求功能>需求功能</a></li><li><a href=#设计方案>设计方案</a></li><li><a href=#流程图>流程图</a></li></ul></li><li><a href=#具体实现代码在github上>具体实现代码在GitHub上</a><ul><li><a href=#测试使用>测试使用</a></li></ul></li></ul></li></ul></nav></div></div><div class=post-content><p>最近我们切换到了Kubernetes，并选择了Traefik作为我们的网关。从Traefik 2.0版本开始，它支持自定义中间件功能，可以对请求进行处理。我们可以基于这个功能来实现一个灰度发布系统。</p><p><a href=https://doc.traefik.io/traefik-pilot/plugins/plugin-dev/>开发Traefik插件</a></p><h3 id=需求功能>需求功能</h3><ol><li>根据用户标识进行灰度发布。</li><li>根据请求版本进行灰度发布。</li><li>根据百分比进行灰度发布。</li><li>根据URL关键字进行灰度发布。</li><li>透明化系统，不需要修改业务代码。</li></ol><h3 id=设计方案>设计方案</h3><p>由于Traefik的中间件是串行的，因此我们将其分成多个步骤进行处理。</p><ol><li>使用一个中间件对流量进行识别和标记。</li><li>使用一个中间件将不同标记的流量转发到不同的服务。</li></ol><h3 id=流程图>流程图</h3><p><strong>默认系统流程</strong><pre class=mermaid align=center>
 flowchart LR;
 user(user)
-traefik(traefik gateway)
+traefik(traefik网关)
 svc(prod-svc)
 pod1(pod1)
 pod2(pod2)
 podX(pod...)
 db[(db)]
 
-    user--request-->traefik-->svc
+    user--请求-->traefik-->svc
     svc-->pod1-->db
     svc-->pod2-->db
     svc-->podX-->db
@@ -19,26 +19,26 @@ db[(db)]
 </pre></p><p><strong>灰度系统流程</strong><pre class=mermaid align=center>
 flowchart LR
 user(user)
-traefik(traefik gateway)
+traefik(traefik网关)
 prodSvc(prod-svc)
 alphaSvc(alpha-svc)
 betaSvc(beta-svc)
-m1{middles...}    
-m2{请求染色}
-m3{请求转发}
-user--request-->traefik
-subgraph traefik middlewares
+m1{中间件...}    
+m2{请求标记中间件}
+m3{请求转发中间件}
+user--请求-->traefik
+subgraph Traefik中间件
 m1-- next -->m2--next-->m3
 end
-subgraph prod env
+subgraph 正式环境
 pod1(pod1)
 pod2(pod...)
 end
-subgraph alpha env
+subgraph Alpha环境
 pod3(pod3)
 pod4(pod...)
 end
-subgraph beta env
+subgraph Beta环境
 pod5(pod5)
 pod6(pod...)
 end
@@ -52,7 +52,7 @@ alphaSvc-->pod3
 alphaSvc-->pod4
 betaSvc-->pod5
 betaSvc-->pod6
-</pre></p><h2 id=具体实现放在了github>具体实现放在了github</h2><ol><li><a href=https://github.com/qxsugar/request-mark>流量染色插件</a></li><li><a href=https://github.com/qxsugar/request-dispatch>流量转发插件</a></li></ol><h3 id=测试使用>测试使用</h3><p>域名准备，域名prod.ppapi.cn，beta.ppapi.cn，alpha.ppapi.cn分别代表正式环境，alpha环境，beta环境。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</pre></p><h2 id=具体实现代码在github上>具体实现代码在GitHub上</h2><ol><li><a href=https://github.com/qxsugar/request-mark>请求标记插件</a></li><li><a href=https://github.com/qxsugar/request-dispatch>请求转发插件</a></li></ol><h3 id=测试使用>测试使用</h3><p>首先准备好域名，prod.ppapi.cn、beta.ppapi.cn、alpha.ppapi.cn分别代表正式环境、beta环境和alpha环境。</p><p>然后按照以下步骤进行操作：</p><ol><li>部署whoami服务。</li><li>对Traefik启动参数进行配置。</li><li>配置规则。</li><li>测试请求。</li></ol><p>具体操作和测试结果如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
 </span><span class=lnt> 2
 </span><span class=lnt> 3
 </span><span class=lnt> 4
@@ -192,7 +192,7 @@ betaSvc-->pod6
 </span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>whoami-svc</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nt>port</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>                  </span><span class=nt>number</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
-</span></span></span></code></pre></td></tr></table></div></div><p>配置traefik启动参数</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></span></span></code></pre></td></tr></table></div></div><p>对Traefik启动参数进行配置</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
 </span><span class=lnt>2
 </span><span class=lnt>3
 </span><span class=lnt>4
@@ -208,7 +208,7 @@ betaSvc-->pod6
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>request-mark</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>moduleName</span><span class=p>:</span><span class=w> </span><span class=l>github.com/qxsugar/request-mark</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>version</span><span class=p>:</span><span class=w> </span><span class=l>v1.0.1</span><span class=w>
-</span></span></span></code></pre></td></tr></table></div></div><p>配置解析规则</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span></span></span></code></pre></td></tr></table></div></div><p>配置规则</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
 </span><span class=lnt> 2
 </span><span class=lnt> 3
 </span><span class=lnt> 4
@@ -292,23 +292,23 @@ betaSvc-->pod6
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>entryPoints</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=l>web</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>middlewares</span><span class=p>:</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=l>request-mark       </span><span class=w> </span><span class=c># 对流量染色</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=l>request-dispatch   </span><span class=w> </span><span class=c># 对染色流量进行转发</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=l>request-mark       </span><span class=w> </span><span class=c># 对流量进行标记</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=l>request-dispatch   </span><span class=w> </span><span class=c># 对标记进行转发</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>services</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>svc</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>loadBalancer</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>servers</span><span class=p>:</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># 默认流量走prod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># 默认流量转发到prod环境</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=nt>url</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;http://prod.ppapi.cn&#34;</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>middlewares</span><span class=p>:</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 流量转发</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 请求转发</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>request-dispatch</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>plugin</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>request-dispatch</span><span class=p>:</span><span class=w> </span><span class=c># 转发插件</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>logLevel</span><span class=p>:</span><span class=w> </span><span class=l>DEBUG</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>markHeader</span><span class=p>:</span><span class=w> </span><span class=l>TAG              </span><span class=w> </span><span class=c># 染色标记header</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>markHeader</span><span class=p>:</span><span class=w> </span><span class=l>TAG              </span><span class=w> </span><span class=c># 标记的header</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>markHosts</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>alpha: # 如果TAG</span><span class=p>:</span><span class=w> </span><span class=l>alpha 转发到这里</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>              </span>- <span class=l>http://alpha.ppapi.cn</span><span class=w>
@@ -316,10 +316,10 @@ betaSvc-->pod6
 </span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>beta</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>              </span>- <span class=l>http://beta.ppapi.cn</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c>#  流量染色</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c>#  请求标记</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>request-mark</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>plugin</span><span class=p>:</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>request-mark</span><span class=p>:</span><span class=w> </span><span class=c># 染色插件</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>request-mark</span><span class=p>:</span><span class=w> </span><span class=c># 标记插件</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>serviceName</span><span class=p>:</span><span class=w> </span><span class=l>ppapi</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>logLevel</span><span class=p>:</span><span class=w> </span><span class=l>DEBUG</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>redisAddr</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&#34;</span><span class=w>
@@ -360,7 +360,7 @@ betaSvc-->pod6
 </span></span></span><span class=line><span class=cl><span class=w>                </span>- <span class=l>A004</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>weight</span><span class=p>:</span><span class=w> </span><span class=m>10</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>alpha</span><span class=w>
-</span></span></span></code></pre></td></tr></table></div></div><p>测试</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span></span></span></code></pre></td></tr></table></div></div><p>测试请求</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
 </span><span class=lnt> 2
 </span><span class=lnt> 3
 </span><span class=lnt> 4
@@ -396,12 +396,12 @@ betaSvc-->pod6
 </span></span><span class=line><span class=cl>IP: 10.42.0.4
 </span></span><span class=line><span class=cl>RemoteAddr: 10.42.0.213:47482
 </span></span><span class=line><span class=cl>GET / HTTP/1.1
-</span></span><span class=line><span class=cl>Host: beta.ppapi.cn                                 # 被转发到了beta
+</span></span><span class=line><span class=cl>Host: beta.ppapi.cn                                 # 被转发到了beta环境
 </span></span><span class=line><span class=cl>User-Agent: HTTPie/2.6.0
 </span></span><span class=line><span class=cl>Accept: */*
 </span></span><span class=line><span class=cl>Accept-Encoding: gzip, deflate
 </span></span><span class=line><span class=cl>Identify: A001
-</span></span><span class=line><span class=cl>Tag: beta                                           # beta染色
+</span></span><span class=line><span class=cl>Tag: beta                                           # 标记为beta
 </span></span><span class=line><span class=cl>X-Forwarded-For: 127.0.0.1, 10.42.0.1
 </span></span><span class=line><span class=cl>X-Forwarded-Host: prod.ppapi.cn
 </span></span><span class=line><span class=cl>X-Forwarded-Port: 80
@@ -444,12 +444,12 @@ betaSvc-->pod6
 </span></span><span class=line><span class=cl>IP: 10.42.0.3
 </span></span><span class=line><span class=cl>RemoteAddr: 10.42.0.213:49676
 </span></span><span class=line><span class=cl>GET / HTTP/1.1
-</span></span><span class=line><span class=cl>Host: alpha.ppapi.cn                                # 被转发到了alpha
+</span></span><span class=line><span class=cl>Host: alpha.ppapi.cn                                # 被转发到了alpha环境
 </span></span><span class=line><span class=cl>User-Agent: HTTPie/2.6.0
 </span></span><span class=line><span class=cl>Accept: */*
 </span></span><span class=line><span class=cl>Accept-Encoding: gzip, deflate
 </span></span><span class=line><span class=cl>Identify: A003
-</span></span><span class=line><span class=cl>Tag: alpha                                          # alpha 染色
+</span></span><span class=line><span class=cl>Tag: alpha                                          # 标记为alpha
 </span></span><span class=line><span class=cl>X-Forwarded-For: 127.0.0.1, 10.42.0.1
 </span></span><span class=line><span class=cl>X-Forwarded-Host: test.ppapi.cn
 </span></span><span class=line><span class=cl>X-Forwarded-Port: 80
@@ -504,7 +504,7 @@ betaSvc-->pod6
 </span></span><span class=line><span class=cl>X-Real-Ip: 127.0.0.1
 </span></span></code></pre></td></tr></table></div></div></div><div class=post-copyright><p class=copyright-item><span class=item-title>Author</span>
 <span class=item-content>qxsugar</span></p><p class=copyright-item><span class=item-title>LastMod</span>
-<span class=item-content>2022-01-06</span></p></div><footer class=post-footer><div class=post-tags><a href=/tags/traefik/>traefik</a></div><nav class=post-nav><a class=prev href=/post/traefik/traefik%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E5%9F%BA%E7%A1%80%E5%87%86%E5%A4%87/><i class="iconfont icon-left"></i>
+<span class=item-content>2022-01-06</span></p></div><footer class=post-footer><div class=post-tags><a href=/tags/traefik/>Traefik</a></div><nav class=post-nav><a class=prev href=/post/traefik/traefik%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB-%E5%9F%BA%E7%A1%80%E5%87%86%E5%A4%87/><i class="iconfont icon-left"></i>
 <span class="prev-text nav-default">解读Traefik源码-准备</span>
 <span class="prev-text nav-mobile">Prev</span></a>
 <a class=next href=/post/misc/2021-annual-summary/><span class="next-text nav-default">2021总结</span>

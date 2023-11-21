@@ -1,9 +1,7 @@
-<!doctype html><html lang=en><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>Traefik配置限流 - 鲜衣怒马少年时，不负韶华行且知</title><meta name=renderer content="webkit"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta http-equiv=cache-control content="no-transform"><meta http-equiv=cache-control content="no-siteapp"><meta name=theme-color content="#f8f5ec"><meta name=msapplication-navbutton-color content="#f8f5ec"><meta name=apple-mobile-web-app-capable content="yes"><meta name=apple-mobile-web-app-status-bar-style content="#f8f5ec"><meta name=author content="qxsugar"><meta name=description content="traefik是一个纯go写的Gateway，不仅内置了很多常用的插件，还支持自定义插件。 今天就来配置一下traefik的限流。 环境准备 这里"><meta name=generator content="Hugo 0.104.3 with theme even"><link rel=canonical href=https://me.ppapi.cn/post/traefik/traefik-rate-limit/><link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png><link rel=manifest href=/manifest.json><link rel=mask-icon href=/safari-pinned-tab.svg color=#5bbad5><link href=/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css rel=stylesheet><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin=anonymous><link rel=stylesheet href=/css/syntax.css><meta property="og:title" content="Traefik配置限流"><meta property="og:description" content="traefik是一个纯go写的Gateway，不仅内置了很多常用的插件，还支持自定义插件。 今天就来配置一下traefik的限流。 环境准备 这里"><meta property="og:type" content="article"><meta property="og:url" content="https://me.ppapi.cn/post/traefik/traefik-rate-limit/"><meta property="article:section" content="post"><meta property="article:published_time" content="2021-12-31T13:56:21+08:00"><meta property="article:modified_time" content="2021-12-31T13:56:21+08:00"><meta itemprop=name content="Traefik配置限流"><meta itemprop=description content="traefik是一个纯go写的Gateway，不仅内置了很多常用的插件，还支持自定义插件。 今天就来配置一下traefik的限流。 环境准备 这里"><meta itemprop=datePublished content="2021-12-31T13:56:21+08:00"><meta itemprop=dateModified content="2021-12-31T13:56:21+08:00"><meta itemprop=wordCount content="838"><meta itemprop=keywords content="traefik,"><meta name=twitter:card content="summary"><meta name=twitter:title content="Traefik配置限流"><meta name=twitter:description content="traefik是一个纯go写的Gateway，不仅内置了很多常用的插件，还支持自定义插件。 今天就来配置一下traefik的限流。 环境准备 这里"><!--[if lte IE 9]><script src=https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js></script><![endif]--><!--[if lt IE 9]><script src=https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js></script>
+<!doctype html><html lang=en><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>Traefik配置限流 - 鲜衣怒马少年时，不负韶华行且知</title><meta name=renderer content="webkit"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta http-equiv=cache-control content="no-transform"><meta http-equiv=cache-control content="no-siteapp"><meta name=theme-color content="#f8f5ec"><meta name=msapplication-navbutton-color content="#f8f5ec"><meta name=apple-mobile-web-app-capable content="yes"><meta name=apple-mobile-web-app-status-bar-style content="#f8f5ec"><meta name=author content="qxsugar"><meta name=description content="Traefik是一个使用纯Go编写的网关，它不仅内置了许多常用的插件，还支持自定义插件。 今天我们来配置Traefik的限流功能。 环境准备 我将"><meta name=generator content="Hugo 0.101.0 with theme even"><link rel=canonical href=https://me.ppapi.cn/post/traefik/traefik-rate-limit/><link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png><link rel=manifest href=/manifest.json><link rel=mask-icon href=/safari-pinned-tab.svg color=#5bbad5><link href=/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css rel=stylesheet><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin=anonymous><link rel=stylesheet href=/css/syntax.css><meta property="og:title" content="Traefik配置限流"><meta property="og:description" content="Traefik是一个使用纯Go编写的网关，它不仅内置了许多常用的插件，还支持自定义插件。 今天我们来配置Traefik的限流功能。 环境准备 我将"><meta property="og:type" content="article"><meta property="og:url" content="https://me.ppapi.cn/post/traefik/traefik-rate-limit/"><meta property="article:section" content="post"><meta property="article:published_time" content="2021-12-31T13:56:21+08:00"><meta property="article:modified_time" content="2021-12-31T13:56:21+08:00"><meta itemprop=name content="Traefik配置限流"><meta itemprop=description content="Traefik是一个使用纯Go编写的网关，它不仅内置了许多常用的插件，还支持自定义插件。 今天我们来配置Traefik的限流功能。 环境准备 我将"><meta itemprop=datePublished content="2021-12-31T13:56:21+08:00"><meta itemprop=dateModified content="2021-12-31T13:56:21+08:00"><meta itemprop=wordCount content="662"><meta itemprop=keywords content="Traefik,"><meta name=twitter:card content="summary"><meta name=twitter:title content="Traefik配置限流"><meta name=twitter:description content="Traefik是一个使用纯Go编写的网关，它不仅内置了许多常用的插件，还支持自定义插件。 今天我们来配置Traefik的限流功能。 环境准备 我将"><!--[if lte IE 9]><script src=https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js></script><![endif]--><!--[if lt IE 9]><script src=https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js></script>
 <script src=https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js></script><![endif]--></head><body><div id=mobile-navbar class=mobile-navbar><div class=mobile-header-logo><a href=/ class=logo>Magic Conch</a></div><div class=mobile-navbar-icon><span></span>
 <span></span>
-<span></span></div></div><nav id=mobile-menu class="mobile-menu slideout-menu"><ul class=mobile-menu-list><a href=/><li class=mobile-menu-item>Home</li></a><a href=/post/><li class=mobile-menu-item>Archives</li></a><a href=/tags/><li class=mobile-menu-item>Tags</li></a><a href=/categories/><li class=mobile-menu-item>Categories</li></a><a href=/about><li class=mobile-menu-item>About</li></a></ul></nav><div class=container id=mobile-panel><header id=header class=header><div class=logo-wrapper><a href=/ class=logo>Magic Conch</a></div><nav class=site-navbar><ul id=menu class=menu><li class=menu-item><a class=menu-item-link href=/>Home</a></li><li class=menu-item><a class=menu-item-link href=/post/>Archives</a></li><li class=menu-item><a class=menu-item-link href=/tags/>Tags</a></li><li class=menu-item><a class=menu-item-link href=/categories/>Categories</a></li><li class=menu-item><a class=menu-item-link href=/about>About</a></li></ul></nav></header><main id=main class=main><div class=content-wrapper><div id=content class=content><article class=post><header class=post-header><h1 class=post-title>Traefik配置限流</h1><div class=post-meta><span class=post-time>2021-12-31</span><div class=post-category><a href=/categories/traefik/>traefik</a></div></div></header><div class=post-toc id=post-toc><h2 class=post-toc-title>Contents</h2><div class="post-toc-content always-active"><nav id=TableOfContents><ul><li><ul><li><ul><li><a href=#环境准备>环境准备</a></li><li><a href=#配置服务>配置服务</a></li><li><a href=#执行ab-test-来并发请求>执行ab test 来并发请求</a></li></ul></li></ul></li></ul></nav></div></div><div class=post-content><p>traefik是一个纯go写的Gateway，不仅内置了很多常用的插件，还支持自定义插件。</p><p>今天就来配置一下traefik的限流。</p><h3 id=环境准备>环境准备</h3><pre><code>这里我是用k3s来测试的，k3s默认的ingress就是traefik。
-准备一个域名指向安装了k3s的服务器。
-</code></pre><h3 id=配置服务>配置服务</h3><ol><li>部署一个nginx的deployment</li></ol><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+<span></span></div></div><nav id=mobile-menu class="mobile-menu slideout-menu"><ul class=mobile-menu-list><a href=/><li class=mobile-menu-item>Home</li></a><a href=/post/><li class=mobile-menu-item>Archives</li></a><a href=/tags/><li class=mobile-menu-item>Tags</li></a><a href=/categories/><li class=mobile-menu-item>Categories</li></a><a href=/about><li class=mobile-menu-item>About</li></a></ul></nav><div class=container id=mobile-panel><header id=header class=header><script type=text/javascript>(function(e,t,n,s,o,i,a){e[n]=e[n]||function(){(e[n].q=e[n].q||[]).push(arguments)},i=t.createElement(s),i.async=1,i.src="https://www.clarity.ms/tag/"+o,a=t.getElementsByTagName(s)[0],a.parentNode.insertBefore(i,a)})(window,document,"clarity","script","jtv84egvvk")</script></header><main id=main class=main><div class=content-wrapper><div id=content class=content><article class=post><header class=post-header><h1 class=post-title>Traefik配置限流</h1><div class=post-meta><span class=post-time>2021-12-31</span><div class=post-category><a href=/categories/traefik/>Traefik</a></div></div></header><div class=post-toc id=post-toc><h2 class=post-toc-title>Contents</h2><div class="post-toc-content always-active"><nav id=TableOfContents><ul><li><ul><li><ul><li><a href=#环境准备>环境准备</a></li><li><a href=#配置服务>配置服务</a></li><li><a href=#使用ab工具进行并发请求测试>使用ab工具进行并发请求测试</a></li></ul></li></ul></li></ul></nav></div></div><div class=post-content><p>Traefik是一个使用纯Go编写的网关，它不仅内置了许多常用的插件，还支持自定义插件。</p><p>今天我们来配置Traefik的限流功能。</p><h3 id=环境准备>环境准备</h3><p>我将使用K3s来演示，并且K3s默认使用的Ingress控制器就是Traefik。你需要准备一个域名，指向安装了K3s的服务器。</p><h3 id=配置服务>配置服务</h3><ol><li>首先，我们部署一个NGINX的Deployment。</li></ol><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
 </span><span class=lnt> 2
 </span><span class=lnt> 3
 </span><span class=lnt> 4
@@ -41,7 +39,7 @@
 </span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>nginx:1.14.2</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>ports</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>            </span>- <span class=nt>containerPort</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
-</span></span></span></code></pre></td></tr></table></div></div><ol start=2><li>配置service指向nginx的deploy</li></ol><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span></span></span></code></pre></td></tr></table></div></div><ol start=2><li>接着，配置一个Service将流量指向NGINX的Deployment。</li></ol><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
 </span><span class=lnt> 2
 </span><span class=lnt> 3
 </span><span class=lnt> 4
@@ -61,7 +59,7 @@
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app</span><span class=p>:</span><span class=w> </span><span class=l>nginx</span><span class=w>
-</span></span></span></code></pre></td></tr></table></div></div><ol start=3><li>配置一个rateLimit的middleware</li></ol><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span></span></span></code></pre></td></tr></table></div></div><ol start=3><li>然后，我们配置一个Rate Limit的中间件。</li></ol><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
 </span><span class=lnt> 2
 </span><span class=lnt> 3
 </span><span class=lnt> 4
@@ -76,12 +74,12 @@
 </span><span class=lnt>13
 </span><span class=lnt>14
 </span><span class=lnt>15
-</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=c># ref https://traefik.tech/middlewares/ratelimit/</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 参数解析</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># average 最大速率，默认情况下是每s请求数，默认值为0，表示没有限制，该速率实际上是用average除以period来定义的。因此，对于低于1 req/s的速率，需要定义一个大于一秒的period</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># burst 是在任意短的同一时间段内允许通过的最大请求数，默认为1</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># period period与average一起定义了实际的最大速率，例如：r = average / period，默认为1</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 下面这个配置定义，每3s允许一个请求通过</span><span class=w>
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=c># 参考文档 https://doc.traefik.io/traefik-middleware/rate-limiter/</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 参数解析：</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># average: 最大速率，默认情况下是每秒请求数，默认值为0，表示没有限制。该速率实际上是用average除以period来定义的。因此，对于每秒请求低于1的速率，需要定义一个数值大于1秒的period。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># burst: 是在任意短的同一时间段内允许通过的最大请求数，默认为1。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># period: 与average一起定义了实际的最大速率。例如：r = average / period，默认为1。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 以下配置定义每3秒允许通过一个请求</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>traefik.containo.us/v1alpha1</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Middleware</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
@@ -91,7 +89,7 @@
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>average</span><span class=p>:</span><span class=w> </span><span class=m>1</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>burst</span><span class=p>:</span><span class=w> </span><span class=m>1</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>period</span><span class=p>:</span><span class=w> </span><span class=m>3</span><span class=w>
-</span></span></span></code></pre></td></tr></table></div></div><ol start=4><li>配置一个ingress解析</li></ol><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span></span></span></code></pre></td></tr></table></div></div><ol start=4><li>最后，配置一个Ingress规则。</li></ol><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
 </span><span class=lnt> 2
 </span><span class=lnt> 3
 </span><span class=lnt> 4
@@ -120,100 +118,14 @@
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>services</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>nginx</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
-</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># 使用限流插件</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># 使用限流中间件</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>middlewares</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>z-rate</span><span class=w>
-</span></span></span></code></pre></td></tr></table></div></div><h3 id=执行ab-test-来并发请求>执行ab test 来并发请求</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
-</span><span class=lnt> 2
-</span><span class=lnt> 3
-</span><span class=lnt> 4
-</span><span class=lnt> 5
-</span><span class=lnt> 6
-</span><span class=lnt> 7
-</span><span class=lnt> 8
-</span><span class=lnt> 9
-</span><span class=lnt>10
-</span><span class=lnt>11
-</span><span class=lnt>12
-</span><span class=lnt>13
-</span><span class=lnt>14
-</span><span class=lnt>15
-</span><span class=lnt>16
-</span><span class=lnt>17
-</span><span class=lnt>18
-</span><span class=lnt>19
-</span><span class=lnt>20
-</span><span class=lnt>21
-</span><span class=lnt>22
-</span><span class=lnt>23
-</span><span class=lnt>24
-</span><span class=lnt>25
-</span><span class=lnt>26
-</span><span class=lnt>27
-</span><span class=lnt>28
-</span><span class=lnt>29
-</span><span class=lnt>30
-</span><span class=lnt>31
-</span><span class=lnt>32
-</span><span class=lnt>33
-</span><span class=lnt>34
-</span><span class=lnt>35
-</span><span class=lnt>36
-</span><span class=lnt>37
-</span><span class=lnt>38
-</span><span class=lnt>39
-</span><span class=lnt>40
-</span><span class=lnt>41
-</span><span class=lnt>42
-</span><span class=lnt>43
-</span><span class=lnt>44
+</span></span></span></code></pre></td></tr></table></div></div><h3 id=使用ab工具进行并发请求测试>使用ab工具进行并发请求测试</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
 </span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>ab -n 100 -c 10 &#34;http://rate.ppapi.cn/&#34;
-</span></span><span class=line><span class=cl>This is ApacheBench, Version 2.3 &lt;$Revision: 1879490 $&gt;
-</span></span><span class=line><span class=cl>Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
-</span></span><span class=line><span class=cl>Licensed to The Apache Software Foundation, http://www.apache.org/
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>Benchmarking rate.ppapi.cn (be patient).....done
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>Server Software:        nginx/1.14.2
-</span></span><span class=line><span class=cl>Server Hostname:        rate.ppapi.cn
-</span></span><span class=line><span class=cl>Server Port:            80
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>Document Path:          /
-</span></span><span class=line><span class=cl>Document Length:        612 bytes
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>Concurrency Level:      10
-</span></span><span class=line><span class=cl>Time taken for tests:   0.534 seconds
-</span></span><span class=line><span class=cl>Complete requests:      100
-</span></span><span class=line><span class=cl>Failed requests:        99
-</span></span><span class=line><span class=cl>   (Connect: 0, Receive: 0, Length: 99, Exceptions: 0)
-</span></span><span class=line><span class=cl>Non-2xx responses:      99
-</span></span><span class=line><span class=cl>Total transferred:      19735 bytes
-</span></span><span class=line><span class=cl>HTML transferred:       2295 bytes
-</span></span><span class=line><span class=cl>Requests per second:    187.18 [#/sec] (mean)
-</span></span><span class=line><span class=cl>Time per request:       53.424 [ms] (mean)
-</span></span><span class=line><span class=cl>Time per request:       5.342 [ms] (mean, across all concurrent requests)
-</span></span><span class=line><span class=cl>Transfer rate:          36.07 [Kbytes/sec] received
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>Connection Times (ms)
-</span></span><span class=line><span class=cl>              min  mean[+/-sd] median   max
-</span></span><span class=line><span class=cl>Connect:       14   22   5.2     20      37
-</span></span><span class=line><span class=cl>Processing:    13   25  27.9     21     293
-</span></span><span class=line><span class=cl>Waiting:       13   22   6.5     21      37
-</span></span><span class=line><span class=cl>Total:         28   47  28.9     44     318
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>Percentage of the requests served within a certain time (ms)
-</span></span><span class=line><span class=cl>  50%     44
-</span></span><span class=line><span class=cl>  66%     48
-</span></span><span class=line><span class=cl>  75%     52
-</span></span><span class=line><span class=cl>  80%     54
-</span></span><span class=line><span class=cl>  90%     58
-</span></span><span class=line><span class=cl>  95%     62
-</span></span><span class=line><span class=cl>  98%     64
-</span></span><span class=line><span class=cl>  99%    318
-</span></span><span class=line><span class=cl> 100%    318 (longest request)
-</span></span></code></pre></td></tr></table></div></div><p><strong>可以看到100次请求用了0.534s，100次请求只有一次成功了，failed了99次，说明限流成功了</strong></p></div><div class=post-copyright><p class=copyright-item><span class=item-title>Author</span>
+</span></span></code></pre></td></tr></table></div></div><p>我们可以看到100次请求用了0.534秒，其中有99次失败了，只有一次请求成功，说明限流成功了。</p></div><div class=post-copyright><p class=copyright-item><span class=item-title>Author</span>
 <span class=item-content>qxsugar</span></p><p class=copyright-item><span class=item-title>LastMod</span>
-<span class=item-content>2021-12-31</span></p></div><footer class=post-footer><div class=post-tags><a href=/tags/traefik/>traefik</a></div><nav class=post-nav><a class=prev href=/post/misc/2021-annual-summary/><i class="iconfont icon-left"></i>
+<span class=item-content>2021-12-31</span></p></div><footer class=post-footer><div class=post-tags><a href=/tags/traefik/>Traefik</a></div><nav class=post-nav><a class=prev href=/post/misc/2021-annual-summary/><i class="iconfont icon-left"></i>
 <span class="prev-text nav-default">2021总结</span>
 <span class="prev-text nav-mobile">Prev</span></a>
 <a class=next href=/post/misc/2021-beijing/><span class="next-text nav-default">这是你心目中的北京城吗</span>
